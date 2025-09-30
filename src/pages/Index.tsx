@@ -48,12 +48,12 @@ const Index = () => {
             (Extended Evolutionary Meta-Model) para intervenções precisas baseadas em evidências.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="gap-2 text-lg" onClick={() => navigate("/dashboard")}>
-              Acessar Dashboard
+            <Button size="lg" className="gap-2 text-lg" onClick={() => navigate("/auth")}>
+              Entrar / Cadastrar
               <ArrowRight className="h-5 w-5" />
             </Button>
-            <Button size="lg" variant="outline" className="text-lg">
-              Saiba Mais
+            <Button size="lg" variant="outline" className="text-lg" onClick={() => navigate("/dashboard")}>
+              Ver Demo
             </Button>
           </div>
         </div>
@@ -87,7 +87,7 @@ const Index = () => {
               este sistema integra as dimensões Cognição, Emoção, Self, Motivação e Comportamento 
               nos níveis Biologia, Psicologia e Cultura.
             </p>
-            <Button size="lg" className="gap-2" onClick={() => navigate("/dashboard")}>
+            <Button size="lg" className="gap-2" onClick={() => navigate("/auth")}>
               Começar Agora
               <ArrowRight className="h-5 w-5" />
             </Button>
