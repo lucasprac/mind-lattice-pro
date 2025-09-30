@@ -14,7 +14,254 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      interventions: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          notes: string | null
+          patient_id: string
+          start_date: string | null
+          status: string | null
+          target_process: string | null
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          patient_id: string
+          start_date?: string | null
+          status?: string | null
+          target_process?: string | null
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          patient_id?: string
+          start_date?: string | null
+          status?: string | null
+          target_process?: string | null
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interventions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      networks: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          network_data: Json
+          patient_id: string
+          therapist_id: string
+          updated_at: string
+          version: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          network_data?: Json
+          patient_id: string
+          therapist_id: string
+          updated_at?: string
+          version?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          network_data?: Json
+          patient_id?: string
+          therapist_id?: string
+          updated_at?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "networks_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "networks_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          address: string | null
+          birth_date: string | null
+          created_at: string
+          email: string | null
+          emergency_contact: string | null
+          emergency_phone: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          status: string | null
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          birth_date?: string | null
+          created_at?: string
+          email?: string | null
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string | null
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          birth_date?: string | null
+          created_at?: string
+          email?: string | null
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string | null
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          specialty: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          specialty?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          specialty?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      records: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          keywords: string[] | null
+          observations: string | null
+          patient_id: string
+          session_date: string
+          session_number: number | null
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          keywords?: string[] | null
+          observations?: string | null
+          patient_id: string
+          session_date?: string
+          session_number?: number | null
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          keywords?: string[] | null
+          observations?: string | null
+          patient_id?: string
+          session_date?: string
+          session_number?: number | null
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "records_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "records_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
