@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,12 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Network } from "lucide-react";
+import { Plus, Network, AlertCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePatients, Patient } from "@/hooks/usePatients";
 import { EnhancedNetworkCanvas } from "./EnhancedNetworkCanvas";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface NetworkDialogProps {
   onNetworkAdded?: () => void;
@@ -37,7 +38,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'info' | 'canvas'>('info');
   const { user } = useAuth();
-  const { patients } = usePatients();
+  const { patients, loading: patientsLoading, error: patientsError, refetch } = usePatients();
   
   const [formData, setFormData] = useState({
     patient_id: selectedPatient?.id || "",
@@ -50,6 +51,19 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
     nodes: [],
     connections: [],
   });
+
+  // Update formData when selectedPatient changes
+  useEffect(() => {
+    if (selectedPatient?.id) {
+      setFormData(prev => ({
+        ...prev,
+        patient_id: selectedPatient.id
+      }));
+    }
+  }, [selectedPatient]);
+
+  // Filter active patients
+  const activePatients = patients.filter(p => p.status === 'active');
 
   const resetForm = () => {
     setFormData({
@@ -158,29 +172,95 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
               </DialogDescription>
             </DialogHeader>
             
+            {/* Patient Loading/Error States */}
+            {patientsLoading && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Carregando lista de pacientes...
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {patientsError && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800">
+                  Erro ao carregar pacientes: {patientsError}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={refetch}
+                    className="ml-2"
+                  >
+                    Tentar novamente
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {!patientsLoading && !patientsError && activePatients.length === 0 && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <Users className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <strong>Nenhum paciente ativo encontrado.</strong><br/>
+                  Você precisa cadastrar pelo menos um paciente ativo antes de criar uma rede.
+                  <br/><br/>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setOpen(false);
+                      // Navigate to patients page - you might need to adjust this
+                      window.location.href = '/patients';
+                    }}
+                    className="mt-2"
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Ir para Pacientes
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <form onSubmit={handleInfoSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Label htmlFor="patient_id">Paciente *</Label>
                   <Select 
                     value={formData.patient_id} 
-                    onValueChange={(value) => setFormData({ ...formData, patient_id: value })}
-                    disabled={!!selectedPatient}
+                    onValueChange={(value) => {
+                      console.log('Selected patient ID:', value); // Debug
+                      setFormData({ ...formData, patient_id: value });
+                    }}
+                    disabled={!!selectedPatient || patientsLoading || activePatients.length === 0}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um paciente" />
+                      <SelectValue placeholder={
+                        patientsLoading ? "Carregando pacientes..." :
+                        activePatients.length === 0 ? "Nenhum paciente ativo" :
+                        "Selecione um paciente"
+                      } />
                     </SelectTrigger>
                     <SelectContent>
-                      {patients
-                        .filter(p => p.status === 'active')
-                        .map((patient) => (
+                      {activePatients.map((patient) => {
+                        console.log('Rendering patient:', patient.id, patient.full_name); // Debug
+                        return (
                           <SelectItem key={patient.id} value={patient.id}>
                             {patient.full_name}
                           </SelectItem>
-                        ))
-                      }
+                        );
+                      })}
                     </SelectContent>
                   </Select>
+                  
+                  {/* Debug info - remove in production */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Debug: {activePatients.length} pacientes ativos carregados
+                      {selectedPatient && ` | Pré-selecionado: ${selectedPatient.full_name}`}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="md:col-span-2">
@@ -225,7 +305,10 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                 >
                   Cancelar
                 </Button>
-                <Button type="submit">
+                <Button 
+                  type="submit"
+                  disabled={!formData.patient_id || !formData.name.trim() || patientsLoading}
+                >
                   Continuar para Editor
                 </Button>
               </DialogFooter>
@@ -242,7 +325,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                 <li>• <strong>Dimensões:</strong> Cognição, Emoção, Self, Motivação, Comportamento Explícito</li>
                 <li>• <strong>Níveis:</strong> Biologia/Fisiologia, Psicologia, Relacionamentos Sociais/Cultura</li>
                 <li>• <strong>Editor:</strong> Interface drag-and-drop com redimensionamento e 3 tipos de conexões</li>
-                <li>• <strong>Conexões:</strong> Maladaptativa (prejuidical), Sem mudança (estável), Adaptativa (benéfica)</li>
+                <li>• <strong>Conexões:</strong> Maladaptativa (prejudicial), Sem mudança (estável), Adaptativa (benéfica)</li>
               </ul>
             </div>
           </>
@@ -256,6 +339,10 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
               </DialogTitle>
               <DialogDescription>
                 Use o editor visual para criar processos e conexões. Arraste os elementos, redimensione caixas, conecte processos e organize sua rede.
+                <br/>
+                <span className="text-sm font-medium">
+                  Paciente: {activePatients.find(p => p.id === formData.patient_id)?.full_name}
+                </span>
               </DialogDescription>
             </DialogHeader>
             
