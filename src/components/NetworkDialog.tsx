@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePatients, Patient } from "@/hooks/usePatients";
-import { NetworkCanvas } from "./NetworkCanvas";
+import { EnhancedNetworkCanvas } from "./EnhancedNetworkCanvas";
 
 interface NetworkDialogProps {
   onNetworkAdded?: () => void;
@@ -241,12 +241,13 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• <strong>Dimensões:</strong> Cognição, Emoção, Self, Motivação, Comportamento Explícito</li>
                 <li>• <strong>Níveis:</strong> Biologia/Fisiologia, Psicologia, Relacionamentos Sociais/Cultura</li>
-                <li>• <strong>Editor:</strong> Interface drag-and-drop com conexões interativas entre processos</li>
+                <li>• <strong>Editor:</strong> Interface drag-and-drop com redimensionamento e 3 tipos de conexões</li>
+                <li>• <strong>Conexões:</strong> Maladaptativa (prejuidical), Sem mudança (estável), Adaptativa (benéfica)</li>
               </ul>
             </div>
           </>
         ) : (
-          // Step 2: Network Canvas Editor
+          // Step 2: Enhanced Network Canvas Editor
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -254,12 +255,12 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                 Editor de Rede: {formData.name}
               </DialogTitle>
               <DialogDescription>
-                Use o editor visual para criar processos e conexões. Arraste os elementos, conecte processos e organize sua rede.
+                Use o editor visual para criar processos e conexões. Arraste os elementos, redimensione caixas, conecte processos e organize sua rede.
               </DialogDescription>
             </DialogHeader>
             
             <div className="flex-1 overflow-auto max-h-[70vh]">
-              <NetworkCanvas
+              <EnhancedNetworkCanvas
                 networkData={networkData}
                 onSave={handleNetworkSave}
               />
@@ -281,13 +282,6 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                 disabled={loading}
               >
                 Cancelar
-              </Button>
-              <Button
-                onClick={() => handleNetworkSave(networkData)}
-                disabled={loading}
-                className="hidden" // Will be triggered by NetworkCanvas save button
-              >
-                {loading ? "Salvando..." : "Salvar Rede"}
               </Button>
             </DialogFooter>
           </>
