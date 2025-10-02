@@ -195,7 +195,7 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
 
   const completeConnection = (endNodeId: string) => {
     if (connectionStart && connectionStart !== endNodeId && connectionMode) {
-      const connection: Connection = {
+      const newConnection: Connection = {
         id: `conn-${Date.now()}`,
         from: connectionStart,
         to: endNodeId,
@@ -204,7 +204,8 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       };
       
       saveToHistory();
-      setConnections([...connections, connection]);
+      // Force immediate update
+      setConnections(prevConnections => [...prevConnections, newConnection]);
       toast.success("Conexão criada");
     }
     
@@ -319,12 +320,28 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     
     if (!fromNode || !toNode) return '';
 
-    const fromX = fromNode.x + fromNode.width / 2;
-    const fromY = fromNode.y + fromNode.height / 2;
-    const toX = toNode.x + toNode.width / 2;
-    const toY = toNode.y + toNode.height / 2;
+    // Calculate center points
+    const fromCenterX = fromNode.x + fromNode.width / 2;
+    const fromCenterY = fromNode.y + fromNode.height / 2;
+    const toCenterX = toNode.x + toNode.width / 2;
+    const toCenterY = toNode.y + toNode.height / 2;
 
-    return `M ${fromX} ${fromY} L ${toX} ${toY}`;
+    // Calculate angle between centers
+    const dx = toCenterX - fromCenterX;
+    const dy = toCenterY - fromCenterY;
+    const angle = Math.atan2(dy, dx);
+
+    // Calculate edge points (where line intersects the box borders)
+    // For 'from' node
+    const fromEdgeX = fromCenterX + Math.cos(angle) * (fromNode.width / 2);
+    const fromEdgeY = fromCenterY + Math.sin(angle) * (fromNode.height / 2);
+
+    // For 'to' node (opposite direction, with offset for arrow visibility)
+    const arrowOffset = 15; // Offset to ensure arrow is visible outside the box
+    const toEdgeX = toCenterX - Math.cos(angle) * (toNode.width / 2 + arrowOffset);
+    const toEdgeY = toCenterY - Math.sin(angle) * (toNode.height / 2 + arrowOffset);
+
+    return `M ${fromEdgeX} ${fromEdgeY} L ${toEdgeX} ${toEdgeY}`;
   };
 
   const getConnectionColor = (type: ConnectionType) => {
@@ -562,20 +579,25 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                 </marker>
               </defs>
               
-              {connections.map((connection) => (
-                <g key={connection.id}>
-                  <path
-                    d={getConnectionPath(connection)}
-                    className={getConnectionColor(connection.type)}
-                    strokeWidth={2.5}
-                    fill="none"
-                    strokeDasharray={getConnectionStyle(connection.type)}
-                    markerEnd={getMarkerEnd(connection.type)}
-                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-                    onClick={() => !readOnly && deleteConnection(connection.id)}
-                  />
-                </g>
-              ))}
+              {connections.map((connection) => {
+                const path = getConnectionPath(connection);
+                if (!path) return null;
+                
+                return (
+                  <g key={connection.id}>
+                    <path
+                      d={path}
+                      className={getConnectionColor(connection.type)}
+                      strokeWidth={2.5}
+                      fill="none"
+                      strokeDasharray={getConnectionStyle(connection.type)}
+                      markerEnd={getMarkerEnd(connection.type)}
+                      style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                      onClick={() => !readOnly && deleteConnection(connection.id)}
+                    />
+                  </g>
+                );
+              })}
             </svg>
 
             {/* Nodes */}
