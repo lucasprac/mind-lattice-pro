@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -10,6 +12,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -29,7 +43,10 @@ import {
   Minus,
   Circle,
   X,
-  Link2
+  Link2,
+  Edit,
+  Settings,
+  ArrowLeftRight
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -83,7 +100,8 @@ interface Connection {
   from: string;
   to: string;
   type: ConnectionType;
-  strength: number;
+  strength: number; // 0-5 intensity
+  ambivalent: boolean; // bidirectional arrow
 }
 
 interface NetworkCanvasProps {
@@ -118,6 +136,14 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
   const [connectionMode, setConnectionMode] = useState<ConnectionType | null>(null);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [showConnectionMenu, setShowConnectionMenu] = useState<string | null>(null);
+  
+  // Connection editing
+  const [editingConnection, setEditingConnection] = useState<Connection | null>(null);
+  const [connectionEditDialog, setConnectionEditDialog] = useState(false);
+  
+  // Process text editing
+  const [editingNodeText, setEditingNodeText] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
   
   // New node form
   const [newNode, setNewNode] = useState({
@@ -195,16 +221,29 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
 
   const completeConnection = (endNodeId: string) => {
     if (connectionStart && connectionStart !== endNodeId && connectionMode) {
+      // Check if connection already exists
+      const existingConnection = connections.find(
+        c => (c.from === connectionStart && c.to === endNodeId) ||
+             (c.from === endNodeId && c.to === connectionStart)
+      );
+      
+      if (existingConnection) {
+        toast.error("Conexão já existe entre estes processos");
+        setConnectionMode(null);
+        setConnectionStart(null);
+        return;
+      }
+
       const newConnection: Connection = {
         id: `conn-${Date.now()}`,
         from: connectionStart,
         to: endNodeId,
         type: connectionMode,
         strength: 3,
+        ambivalent: false
       };
       
       saveToHistory();
-      // Force immediate update
       setConnections(prevConnections => [...prevConnections, newConnection]);
       toast.success("Conexão criada");
     }
@@ -216,7 +255,42 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
   const deleteConnection = (connId: string) => {
     saveToHistory();
     setConnections(connections.filter(c => c.id !== connId));
+    setEditingConnection(null);
+    setConnectionEditDialog(false);
     toast.success("Conexão removida");
+  };
+
+  const updateConnection = (connectionId: string, updates: Partial<Connection>) => {
+    saveToHistory();
+    setConnections(connections.map(c => 
+      c.id === connectionId ? { ...c, ...updates } : c
+    ));
+    toast.success("Conexão atualizada");
+  };
+
+  const startEditingNodeText = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setEditingNodeText(nodeId);
+      setEditingText(node.text);
+    }
+  };
+
+  const saveNodeText = () => {
+    if (editingNodeText && editingText.trim()) {
+      saveToHistory();
+      setNodes(nodes.map(n => 
+        n.id === editingNodeText ? { ...n, text: editingText.trim() } : n
+      ));
+      toast.success("Texto do processo atualizado");
+    }
+    setEditingNodeText(null);
+    setEditingText('');
+  };
+
+  const cancelEditingNodeText = () => {
+    setEditingNodeText(null);
+    setEditingText('');
   };
 
   const handleMouseDown = (e: React.MouseEvent, nodeId: string) => {
@@ -253,6 +327,8 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
+    // Close any open menus when clicking canvas
+    setShowConnectionMenu(null);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -314,6 +390,13 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     }
   };
 
+  const handleConnectionClick = (connection: Connection, e: React.MouseEvent) => {
+    if (readOnly) return;
+    e.stopPropagation();
+    setEditingConnection(connection);
+    setConnectionEditDialog(true);
+  };
+
   const getConnectionPath = (connection: Connection) => {
     const fromNode = nodes.find(n => n.id === connection.from);
     const toNode = nodes.find(n => n.id === connection.to);
@@ -356,12 +439,26 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     return type === 'unchanged' ? '5,5' : '0';
   };
 
-  const getMarkerEnd = (type: ConnectionType) => {
-    switch (type) {
+  const getMarkerEnd = (connection: Connection) => {
+    if (connection.ambivalent) {
+      return `url(#arrow-${connection.type}-bidirectional)`;
+    }
+    switch (connection.type) {
       case 'maladaptive': return 'url(#arrow-maladaptive)';
       case 'adaptive': return 'url(#arrow-adaptive)';
       case 'unchanged': return 'url(#arrow-unchanged)';
     }
+  };
+
+  const getMarkerStart = (connection: Connection) => {
+    if (connection.ambivalent) {
+      return `url(#arrow-${connection.type}-start)`;
+    }
+    return '';
+  };
+
+  const getStrokeWidth = (strength: number) => {
+    return 1 + (strength * 0.5); // 1px to 3.5px based on strength
   };
 
   useEffect(() => {
@@ -510,8 +607,92 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
             <Circle className="h-4 w-4 text-green-500 fill-green-500" />
             <span className="text-sm font-medium">Adaptativa</span>
           </div>
+          <div className="flex items-center gap-2">
+            <ArrowLeftRight className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium">Ambivalente (bidirecional)</span>
+          </div>
         </div>
       </Card>
+
+      {/* Connection Edit Dialog */}
+      <Dialog open={connectionEditDialog} onOpenChange={setConnectionEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Editar Conexão
+            </DialogTitle>
+            <DialogDescription>
+              Ajuste a intensidade e propriedades da conexão.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingConnection && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Intensidade: {editingConnection.strength}</Label>
+                <Slider
+                  value={[editingConnection.strength]}
+                  onValueChange={([value]) => 
+                    setEditingConnection({ ...editingConnection, strength: value })
+                  }
+                  min={0}
+                  max={5}
+                  step={1}
+                  className="mt-2"
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>Fraca (0)</span>
+                  <span>Forte (5)</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="ambivalent"
+                  checked={editingConnection.ambivalent}
+                  onCheckedChange={(checked) => 
+                    setEditingConnection({ ...editingConnection, ambivalent: checked as boolean })
+                  }
+                />
+                <Label htmlFor="ambivalent" className="text-sm">
+                  Conexão ambivalente (bidirecional)
+                </Label>
+              </div>
+              
+              <div className="flex justify-between pt-4">
+                <Button
+                  variant="destructive"
+                  onClick={() => deleteConnection(editingConnection.id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </Button>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setConnectionEditDialog(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      updateConnection(editingConnection.id, {
+                        strength: editingConnection.strength,
+                        ambivalent: editingConnection.ambivalent
+                      });
+                      setConnectionEditDialog(false);
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Canvas */}
       <Card className="relative overflow-hidden bg-gray-50" style={{ height: '700px' }}>
@@ -545,6 +726,7 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
               }}
             >
               <defs>
+                {/* Standard markers */}
                 <marker
                   id="arrow-maladaptive"
                   markerWidth="10"
@@ -577,6 +759,40 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                 >
                   <path d="M0,0 L0,6 L9,3 z" fill="#9ca3af" />
                 </marker>
+                
+                {/* Start markers for bidirectional arrows */}
+                <marker
+                  id="arrow-maladaptive-start"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="1"
+                  refY="3"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M9,0 L9,6 L0,3 z" fill="#ef4444" />
+                </marker>
+                <marker
+                  id="arrow-adaptive-start"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="5"
+                  refY="5"
+                  orient="auto"
+                >
+                  <circle cx="5" cy="5" r="4" fill="#22c55e" />
+                </marker>
+                <marker
+                  id="arrow-unchanged-start"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="1"
+                  refY="3"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M9,0 L9,6 L0,3 z" fill="#9ca3af" />
+                </marker>
               </defs>
               
               {connections.map((connection) => {
@@ -588,13 +804,26 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                     <path
                       d={path}
                       className={getConnectionColor(connection.type)}
-                      strokeWidth={2.5}
+                      strokeWidth={getStrokeWidth(connection.strength)}
                       fill="none"
                       strokeDasharray={getConnectionStyle(connection.type)}
-                      markerEnd={getMarkerEnd(connection.type)}
+                      markerEnd={getMarkerEnd(connection)}
+                      markerStart={getMarkerStart(connection)}
                       style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-                      onClick={() => !readOnly && deleteConnection(connection.id)}
+                      onClick={(e) => handleConnectionClick(connection, e)}
                     />
+                    {/* Connection strength indicator */}
+                    {connection.strength > 0 && (
+                      <text
+                        x={(parseFloat(path.split(' ')[1]) + parseFloat(path.split(' ')[4])) / 2}
+                        y={(parseFloat(path.split(' ')[2]) + parseFloat(path.split(' ')[5])) / 2 - 5}
+                        className="text-xs fill-current text-gray-600"
+                        textAnchor="middle"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {connection.strength}
+                      </text>
+                    )}
                   </g>
                 );
               })}
@@ -604,6 +833,7 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
             {nodes.map((node) => {
               const dimensionStyles = EEMM_DIMENSIONS[node.dimension];
               const isSelected = selectedNode === node.id;
+              const isEditing = editingNodeText === node.id;
               
               return (
                 <div
@@ -622,16 +852,73 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2 h-full">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium break-words">{node.text}</p>
-                      <div className="flex gap-1 mt-1">
-                        <Badge variant="secondary" className="text-xs">
-                          {EEMM_LEVELS[node.level].name}
-                        </Badge>
-                      </div>
+                      {isEditing ? (
+                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                saveNodeText();
+                              } else if (e.key === 'Escape') {
+                                cancelEditingNodeText();
+                              }
+                            }}
+                            autoFocus
+                            className="text-sm"
+                          />
+                          <div className="flex gap-1">
+                            <Button size="xs" onClick={saveNodeText}>
+                              Salvar
+                            </Button>
+                            <Button size="xs" variant="outline" onClick={cancelEditingNodeText}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium break-words cursor-text" 
+                             onClick={(e) => {
+                               if (!readOnly) {
+                                 e.stopPropagation();
+                                 startEditingNodeText(node.id);
+                               }
+                             }}>
+                            {node.text}
+                          </p>
+                          <div className="flex gap-1 mt-1">
+                            <Badge variant="secondary" className="text-xs">
+                              {EEMM_LEVELS[node.level].name}
+                            </Badge>
+                          </div>
+                        </>
+                      )}
                     </div>
                     
-                    {!readOnly && (
+                    {!readOnly && !isEditing && (
                       <div className="flex flex-col gap-1 shrink-0">
+                        {/* Edit text button */}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditingNodeText(node.id);
+                                }}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar Texto</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
                         {/* Connection button */}
                         <TooltipProvider>
                           <Tooltip>
@@ -707,7 +994,7 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                   )}
                   
                   {/* Resize handle */}
-                  {isSelected && !readOnly && (
+                  {isSelected && !readOnly && !isEditing && (
                     <div
                       className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 rounded-tl cursor-nwse-resize"
                       onMouseDown={(e) => handleResizeStart(e, node.id)}
