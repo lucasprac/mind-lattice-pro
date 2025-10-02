@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePatients, Patient } from "@/hooks/usePatients";
-import { EnhancedNetworkCanvas } from "./EnhancedNetworkCanvas";
+import { OptimizedNetworkCanvas } from "./OptimizedNetworkCanvas";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface NetworkDialogProps {
@@ -123,6 +123,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
             total_connections: data.connections.length,
             dimensions_used: [...new Set(data.nodes.map((n: any) => n.dimension))],
             levels_used: [...new Set(data.nodes.map((n: any) => n.level))],
+            optimization_version: '2.0' // Track that this uses optimized canvas
           }
         },
         version: formData.version,
@@ -165,10 +166,10 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Network className="h-5 w-5" />
-                Criar Nova Rede de Processos
+                Criar Nova Rede de Processos - Versão Otimizada
               </DialogTitle>
               <DialogDescription>
-                Configure as informações básicas da rede antes de iniciar a edição visual.
+                Configure as informações básicas da rede antes de iniciar a edição visual com as novas funcionalidades otimizadas.
               </DialogDescription>
             </DialogHeader>
             
@@ -211,7 +212,6 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                     size="sm"
                     onClick={() => {
                       setOpen(false);
-                      // Navigate to patients page - you might need to adjust this
                       window.location.href = '/patients';
                     }}
                     className="mt-2"
@@ -230,7 +230,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                   <Select 
                     value={formData.patient_id} 
                     onValueChange={(value) => {
-                      console.log('Selected patient ID:', value); // Debug
+                      console.log('Selected patient ID:', value);
                       setFormData({ ...formData, patient_id: value });
                     }}
                     disabled={!!selectedPatient || patientsLoading || activePatients.length === 0}
@@ -244,7 +244,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                     </SelectTrigger>
                     <SelectContent>
                       {activePatients.map((patient) => {
-                        console.log('Rendering patient:', patient.id, patient.full_name); // Debug
+                        console.log('Rendering patient:', patient.id, patient.full_name);
                         return (
                           <SelectItem key={patient.id} value={patient.id}>
                             {patient.full_name}
@@ -309,36 +309,54 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                   type="submit"
                   disabled={!formData.patient_id || !formData.name.trim() || patientsLoading}
                 >
-                  Continuar para Editor
+                  Continuar para Editor Otimizado
                 </Button>
               </DialogFooter>
             </form>
             
-            {/* Information about EEMM */}
-            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold mb-2">Sobre o Modelo EEMM</h4>
-              <p className="text-sm text-muted-foreground mb-2">
-                O editor permite criar redes de processos baseadas no Modelo Meta-evolutivo Estendido (EEMM),
-                organizando processos psicológicos em 5 dimensões e 3 níveis.
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• <strong>Dimensões:</strong> Cognição, Emoção, Self, Motivação, Comportamento Explícito</li>
-                <li>• <strong>Níveis:</strong> Biologia/Fisiologia, Psicologia, Relacionamentos Sociais/Cultura</li>
-                <li>• <strong>Editor:</strong> Interface drag-and-drop com redimensionamento e 3 tipos de conexões</li>
-                <li>• <strong>Conexões:</strong> Maladaptativa (prejudicial), Sem mudança (estável), Adaptativa (benéfica)</li>
-              </ul>
+            {/* Information about EEMM + Optimizations */}
+            <div className="mt-6 space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <h4 className="font-semibold mb-2">Sobre o Modelo EEMM</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  O editor permite criar redes de processos baseadas no Modelo Meta-evolutivo Estendido (EEMM),
+                  organizando processos psicológicos em 5 dimensões e 3 níveis.
+                </p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• <strong>Dimensões:</strong> Cognição, Emoção, Self, Motivação, Comportamento Explícito</li>
+                  <li>• <strong>Níveis:</strong> Biologia/Fisiologia, Psicologia, Relacionamentos Sociais/Cultura</li>
+                </ul>
+              </div>
+              
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
+                <h4 className="font-semibold mb-2 text-blue-900">🚀 Novidades desta Versão Otimizada</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="font-medium text-blue-800">🎯 Marcadores Individuais</p>
+                    <p className="text-blue-700">Escolha diferentes tipos para cada ponta da conexão</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-green-800">👁 Visualização Inteligente</p>
+                    <p className="text-green-700">Números de intensidade sempre legíveis</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-purple-800">📐 Layout Responsivo</p>
+                    <p className="text-purple-700">Processos se ajustam automaticamente</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </>
         ) : (
-          // Step 2: Enhanced Network Canvas Editor
+          // Step 2: Optimized Network Canvas Editor
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Network className="h-5 w-5" />
-                Editor de Rede: {formData.name}
+                Editor Otimizado: {formData.name}
               </DialogTitle>
               <DialogDescription>
-                Use o editor visual para criar processos e conexões. Arraste os elementos, redimensione caixas, conecte processos e organize sua rede.
+                Use o editor visual otimizado com marcadores personalizáveis, visualização inteligente e layout responsivo.
                 <br/>
                 <span className="text-sm font-medium">
                   Paciente: {activePatients.find(p => p.id === formData.patient_id)?.full_name}
@@ -347,7 +365,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
             </DialogHeader>
             
             <div className="flex-1 overflow-auto max-h-[70vh]">
-              <EnhancedNetworkCanvas
+              <OptimizedNetworkCanvas
                 networkData={networkData}
                 onSave={handleNetworkSave}
               />
