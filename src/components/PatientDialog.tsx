@@ -43,7 +43,7 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
     emergency_contact: "",
     emergency_phone: "",
     notes: "",
-    status: "active" as const,
+    status: "active" as "active" | "inactive" | "discharged",
   });
 
   const resetForm = () => {

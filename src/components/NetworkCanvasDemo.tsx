@@ -15,8 +15,8 @@ const DEMO_NETWORK_DATA = {
       width: 220,
       height: 80,
       text: "Não devo ser egoísta",
-      dimension: "cognition",
-      level: "psychology",
+      dimension: "cognition" as const,
+      level: "psychology" as const,
       intensity: 4,
       frequency: 5
     },
@@ -27,8 +27,8 @@ const DEMO_NETWORK_DATA = {
       width: 180,
       height: 70,
       text: "Sente-se rejeitada",
-      dimension: "emotion",
-      level: "psychology",
+      dimension: "emotion" as const,
+      level: "psychology" as const,
       intensity: 4,
       frequency: 4
     },
@@ -39,8 +39,8 @@ const DEMO_NETWORK_DATA = {
       width: 250,
       height: 90,
       text: "Mãe tentou moldá-la como 'boa menina'",
-      dimension: "self",
-      level: "social",
+      dimension: "self" as const,
+      level: "social" as const,
       intensity: 3,
       frequency: 2
     },
@@ -51,8 +51,8 @@ const DEMO_NETWORK_DATA = {
       width: 200,
       height: 80,
       text: "Dificuldade de se defender",
-      dimension: "behavior",
-      level: "psychology",
+      dimension: "behavior" as const,
+      level: "psychology" as const,
       intensity: 5,
       frequency: 5
     },
@@ -63,8 +63,8 @@ const DEMO_NETWORK_DATA = {
       width: 180,
       height: 80,
       text: "Evita conversas difíceis",
-      dimension: "behavior",
-      level: "psychology",
+      dimension: "behavior" as const,
+      level: "psychology" as const,
       intensity: 4,
       frequency: 5
     },
@@ -75,8 +75,8 @@ const DEMO_NETWORK_DATA = {
       width: 230,
       height: 80,
       text: "Carreira altamente bem-sucedida",
-      dimension: "motivation",
-      level: "psychology",
+      dimension: "motivation" as const,
+      level: "psychology" as const,
       intensity: 5,
       frequency: 3
     },
@@ -87,8 +87,8 @@ const DEMO_NETWORK_DATA = {
       width: 200,
       height: 80,
       text: "Quero ajudar outras pessoas",
-      dimension: "motivation",
-      level: "psychology",
+      dimension: "motivation" as const,
+      level: "psychology" as const,
       intensity: 4,
       frequency: 4
     },
@@ -99,8 +99,8 @@ const DEMO_NETWORK_DATA = {
       width: 180,
       height: 80,
       text: "Falta de apoio do marido",
-      dimension: "emotion",
-      level: "social",
+      dimension: "emotion" as const,
+      level: "social" as const,
       intensity: 3,
       frequency: 4
     },
@@ -111,8 +111,8 @@ const DEMO_NETWORK_DATA = {
       width: 250,
       height: 80,
       text: "Recorre a agradar as pessoas",
-      dimension: "behavior",
-      level: "psychology",
+      dimension: "behavior" as const,
+      level: "psychology" as const,
       intensity: 5,
       frequency: 5
     }
@@ -122,63 +122,63 @@ const DEMO_NETWORK_DATA = {
       id: "conn-1",
       from: "node-1",
       to: "node-2",
-      type: "maladaptive",
+      type: "maladaptive" as const,
       strength: 3
     },
     {
       id: "conn-2",
       from: "node-3",
       to: "node-1",
-      type: "maladaptive",
+      type: "maladaptive" as const,
       strength: 4
     },
     {
       id: "conn-3",
       from: "node-2",
       to: "node-4",
-      type: "maladaptive",
+      type: "maladaptive" as const,
       strength: 4
     },
     {
       id: "conn-4",
       from: "node-4",
       to: "node-5",
-      type: "maladaptive",
+      type: "maladaptive" as const,
       strength: 5
     },
     {
       id: "conn-5",
       from: "node-6",
       to: "node-7",
-      type: "adaptive",
+      type: "adaptive" as const,
       strength: 4
     },
     {
       id: "conn-6",
       from: "node-7",
       to: "node-9",
-      type: "unchanged",
+      type: "unchanged" as const,
       strength: 3
     },
     {
       id: "conn-7",
       from: "node-8",
       to: "node-5",
-      type: "maladaptive",
+      type: "maladaptive" as const,
       strength: 3
     },
     {
       id: "conn-8",
       from: "node-5",
       to: "node-9",
-      type: "maladaptive",
+      type: "maladaptive" as const,
       strength: 4
     },
     {
       id: "conn-9",
       from: "node-9",
       to: "node-2",
-      type: "maladaptive",
+      type: "maladaptive" as const,
       strength: 3
     }
   ]

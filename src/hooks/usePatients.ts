@@ -48,7 +48,7 @@ export const usePatients = () => {
         return;
       }
 
-      setPatients(data || []);
+      setPatients((data as any) || []);
     } catch (err) {
       console.error("Erro inesperado:", err);
       setError("Erro inesperado ao carregar pacientes");
@@ -111,7 +111,7 @@ export const usePatients = () => {
 
       toast.success("Paciente atualizado com sucesso");
       // Update patient in local state
-      setPatients(prev => prev.map(p => p.id === patientId ? { ...p, ...data } : p));
+      setPatients(prev => prev.map(p => p.id === patientId ? { ...p, ...(data as any) } : p));
       return true;
     } catch (err) {
       console.error("Erro inesperado ao atualizar:", err);

@@ -72,7 +72,7 @@ export const useNetworks = (patientId?: string) => {
         return;
       }
 
-      setNetworks(data || []);
+      setNetworks((data as any) || []);
     } catch (err) {
       console.error("Erro inesperado:", err);
       setError("Erro inesperado ao carregar redes");
@@ -141,7 +141,7 @@ export const useNetworks = (patientId?: string) => {
 
       toast.success("Rede atualizada com sucesso");
       // Update network in local state
-      setNetworks(prev => prev.map(n => n.id === networkId ? { ...n, ...data } : n));
+      setNetworks(prev => prev.map(n => n.id === networkId ? { ...n, ...(data as any) } : n));
       return true;
     } catch (err) {
       console.error("Erro inesperado ao atualizar:", err);
