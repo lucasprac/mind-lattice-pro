@@ -19,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -41,9 +51,7 @@ import {
   Link2,
   Edit,
   Settings,
-  ArrowLeftRight,
-  Square,
-  Triangle
+  ArrowLeftRight
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -77,8 +85,8 @@ const EEMM_LEVELS = {
   social: { name: "Social/Cultural" }
 };
 
-// Marker types for connection endpoints
-type MarkerType = 'none' | 'arrow' | 'circle' | 'square' | 'triangle';
+// Only 3 marker types as requested
+type MarkerType = 'arrow' | 'line' | 'circle';
 
 interface ProcessNode {
   id: string;
@@ -102,8 +110,8 @@ interface Connection {
   type: ConnectionType;
   strength: number; // 0-5 intensity
   ambivalent: boolean; // bidirectional arrow
-  startMarker: MarkerType; // Individual start marker
-  endMarker: MarkerType; // Individual end marker
+  startMarker: MarkerType;
+  endMarker: MarkerType;
 }
 
 interface NetworkCanvasProps {
@@ -143,9 +151,13 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
   const [editingConnection, setEditingConnection] = useState<Connection | null>(null);
   const [connectionEditDialog, setConnectionEditDialog] = useState(false);
   
-  // Process text editing
+  // Process text editing - improved state management
   const [editingNodeText, setEditingNodeText] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+  
+  // Delete confirmation dialog
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState(false);
+  const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
   
   // New node form
   const [newNode, setNewNode] = useState({
@@ -156,13 +168,11 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     frequency: 3,
   });
 
-  // Marker options for the UI
+  // Only 3 marker options as requested
   const markerOptions: { value: MarkerType; label: string; icon: React.ReactNode }[] = [
-    { value: 'none', label: 'Nenhum', icon: <Minus className="h-4 w-4" /> },
+    { value: 'line', label: 'Traço', icon: <Minus className="h-4 w-4" /> },
     { value: 'arrow', label: 'Seta', icon: <ArrowRight className="h-4 w-4" /> },
     { value: 'circle', label: 'Círculo', icon: <Circle className="h-4 w-4" /> },
-    { value: 'square', label: 'Quadrado', icon: <Square className="h-4 w-4" /> },
-    { value: 'triangle', label: 'Triângulo', icon: <Triangle className="h-4 w-4" /> },
   ];
 
   const saveToHistory = useCallback(() => {
@@ -236,12 +246,23 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     toast.success("Processo adicionado");
   };
 
-  const deleteNode = (nodeId: string) => {
-    saveToHistory();
-    setNodes(nodes.filter(n => n.id !== nodeId));
-    setConnections(connections.filter(c => c.from !== nodeId && c.to !== nodeId));
-    setSelectedNode(null);
-    toast.success("Processo removido");
+  // Show delete confirmation dialog
+  const showDeleteConfirmation = (nodeId: string) => {
+    setNodeToDelete(nodeId);
+    setDeleteConfirmDialog(true);
+  };
+
+  // Confirm delete node
+  const confirmDeleteNode = () => {
+    if (nodeToDelete) {
+      saveToHistory();
+      setNodes(nodes.filter(n => n.id !== nodeToDelete));
+      setConnections(connections.filter(c => c.from !== nodeToDelete && c.to !== nodeToDelete));
+      setSelectedNode(null);
+      toast.success("Processo removido");
+    }
+    setDeleteConfirmDialog(false);
+    setNodeToDelete(null);
   };
 
   const startConnectionFromNode = (nodeId: string, type: ConnectionType) => {
@@ -267,13 +288,13 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       }
 
       // Set default markers based on connection type
-      let defaultStartMarker: MarkerType = 'none';
+      let defaultStartMarker: MarkerType = 'line';
       let defaultEndMarker: MarkerType = 'arrow';
       
       if (connectionMode === 'adaptive') {
         defaultEndMarker = 'circle';
       } else if (connectionMode === 'unchanged') {
-        defaultEndMarker = 'none';
+        defaultEndMarker = 'line';
       }
 
       const newConnection: Connection = {
@@ -306,6 +327,12 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
 
   const updateConnection = (connectionId: string, updates: Partial<Connection>) => {
     saveToHistory();
+    // Handle ambivalent connections - automatically set both ends to arrow
+    if (updates.ambivalent) {
+      updates.startMarker = 'arrow';
+      updates.endMarker = 'arrow';
+    }
+    
     setConnections(connections.map(c => 
       c.id === connectionId ? { ...c, ...updates } : c
     ));
@@ -533,12 +560,12 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
   };
 
   const getMarkerEnd = (connection: Connection) => {
-    if (connection.endMarker === 'none') return '';
+    if (connection.endMarker === 'line') return '';
     return `url(#${connection.endMarker}-${connection.type}-end)`;
   };
 
   const getMarkerStart = (connection: Connection) => {
-    if (connection.startMarker === 'none') return '';
+    if (connection.startMarker === 'line') return '';
     return `url(#${connection.startMarker}-${connection.type}-start)`;
   };
 
@@ -667,7 +694,25 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
         </Card>
       )}
 
-      {/* Connection Edit Dialog with Individual Marker Selection */}
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmDialog} onOpenChange={setDeleteConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esse processo? Esta ação não pode ser desfeita e todas as conexões relacionadas também serão removidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteNode} className="bg-red-600 hover:bg-red-700">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Connection Edit Dialog with only 3 marker types */}
       <Dialog open={connectionEditDialog} onOpenChange={setConnectionEditDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -700,10 +745,10 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                 </div>
               </div>
               
-              {/* Start Marker Selection */}
+              {/* Start Marker Selection - Only 3 options */}
               <div>
                 <Label className="text-sm font-medium mb-2 block">Marcador Inicial</Label>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {markerOptions.map((option) => (
                     <Button
                       key={`start-${option.value}`}
@@ -715,16 +760,19 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                         startMarker: option.value 
                       })}
                     >
-                      {option.icon}
+                      <div className="flex flex-col items-center gap-1">
+                        {option.icon}
+                        <span className="text-xs">{option.label}</span>
+                      </div>
                     </Button>
                   ))}
                 </div>
               </div>
               
-              {/* End Marker Selection */}
+              {/* End Marker Selection - Only 3 options */}
               <div>
                 <Label className="text-sm font-medium mb-2 block">Marcador Final</Label>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {markerOptions.map((option) => (
                     <Button
                       key={`end-${option.value}`}
@@ -736,7 +784,10 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                         endMarker: option.value 
                       })}
                     >
-                      {option.icon}
+                      <div className="flex flex-col items-center gap-1">
+                        {option.icon}
+                        <span className="text-xs">{option.label}</span>
+                      </div>
                     </Button>
                   ))}
                 </div>
@@ -746,12 +797,25 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                 <Checkbox
                   id="ambivalent"
                   checked={editingConnection.ambivalent}
-                  onCheckedChange={(checked) => 
-                    setEditingConnection({ ...editingConnection, ambivalent: checked as boolean })
-                  }
+                  onCheckedChange={(checked) => {
+                    // When ambivalent is selected, automatically set both ends to arrow
+                    if (checked) {
+                      setEditingConnection({ 
+                        ...editingConnection, 
+                        ambivalent: checked as boolean,
+                        startMarker: 'arrow',
+                        endMarker: 'arrow'
+                      });
+                    } else {
+                      setEditingConnection({ 
+                        ...editingConnection, 
+                        ambivalent: checked as boolean
+                      });
+                    }
+                  }}
                 />
                 <Label htmlFor="ambivalent" className="text-sm">
-                  Conexão ambivalente (força bidirecional)
+                  Ambivalente (automaticamente fica com seta em cada ponta)
                 </Label>
               </div>
               
@@ -810,7 +874,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
               position: 'absolute',
             }}
           >
-            {/* SVG for connections */}
+            {/* SVG for connections with only 3 marker types */}
             <svg
               style={{
                 position: 'absolute',
@@ -823,7 +887,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
               }}
             >
               <defs>
-                {/* Generate markers for all combinations */}
+                {/* Generate markers for all combinations of 3 types */}
                 {['maladaptive', 'adaptive', 'unchanged'].map(type => (
                   <g key={type}>
                     {/* Arrow markers */}
@@ -888,66 +952,22 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                       />
                     </marker>
                     
-                    {/* Square markers */}
+                    {/* Line markers (no visual marker, just for reference) */}
                     <marker
-                      id={`square-${type}-end`}
-                      markerWidth="10"
-                      markerHeight="10"
-                      refX="5"
-                      refY="5"
-                      orient="auto"
+                      id={`line-${type}-end`}
+                      markerWidth="0"
+                      markerHeight="0"
+                      refX="0"
+                      refY="0"
                     >
-                      <rect 
-                        x="1" 
-                        y="1" 
-                        width="8" 
-                        height="8" 
-                        fill={type === 'maladaptive' ? '#ef4444' : type === 'adaptive' ? '#22c55e' : '#9ca3af'} 
-                      />
                     </marker>
                     <marker
-                      id={`square-${type}-start`}
-                      markerWidth="10"
-                      markerHeight="10"
-                      refX="5"
-                      refY="5"
-                      orient="auto"
+                      id={`line-${type}-start`}
+                      markerWidth="0"
+                      markerHeight="0"
+                      refX="0"
+                      refY="0"
                     >
-                      <rect 
-                        x="1" 
-                        y="1" 
-                        width="8" 
-                        height="8" 
-                        fill={type === 'maladaptive' ? '#ef4444' : type === 'adaptive' ? '#22c55e' : '#9ca3af'} 
-                      />
-                    </marker>
-                    
-                    {/* Triangle markers */}
-                    <marker
-                      id={`triangle-${type}-end`}
-                      markerWidth="10"
-                      markerHeight="10"
-                      refX="7"
-                      refY="5"
-                      orient="auto"
-                    >
-                      <path 
-                        d="M1,1 L1,9 L8,5 z" 
-                        fill={type === 'maladaptive' ? '#ef4444' : type === 'adaptive' ? '#22c55e' : '#9ca3af'} 
-                      />
-                    </marker>
-                    <marker
-                      id={`triangle-${type}-start`}
-                      markerWidth="10"
-                      markerHeight="10"
-                      refX="3"
-                      refY="5"
-                      orient="auto"
-                    >
-                      <path 
-                        d="M9,1 L9,9 L2,5 z" 
-                        fill={type === 'maladaptive' ? '#ef4444' : type === 'adaptive' ? '#22c55e' : '#9ca3af'} 
-                      />
                     </marker>
                   </g>
                 ))}
@@ -1008,7 +1028,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
               })}
             </svg>
 
-            {/* Optimized Nodes with responsive sizing */}
+            {/* Improved Nodes with better text editing design */}
             {nodes.map((node) => {
               const dimensionStyles = EEMM_DIMENSIONS[node.dimension];
               const isSelected = selectedNode === node.id;
@@ -1032,17 +1052,17 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                   }}
                   onMouseDown={(e) => handleMouseDown(e, node.id)}
                 >
-                  {/* Content area with optimized layout */}
+                  {/* Content area with improved layout for editing */}
                   <div className="flex-1 flex flex-col justify-between min-h-0">
-                    {/* Text content */}
-                    <div className="flex-1 min-h-0 pr-2">
+                    {/* Text content with improved editing design */}
+                    <div className="flex-1 min-h-0">
                       {isEditing ? (
-                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                          <Input
+                        <div className="space-y-3 h-full" onClick={(e) => e.stopPropagation()}>
+                          <textarea
                             value={editingText}
                             onChange={(e) => setEditingText(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
+                              if (e.key === 'Enter' && e.ctrlKey) {
                                 e.preventDefault();
                                 saveNodeText();
                               } else if (e.key === 'Escape') {
@@ -1050,20 +1070,31 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                               }
                             }}
                             autoFocus
-                            className="text-sm h-8"
+                            className="w-full h-20 text-sm p-2 border rounded resize-none"
+                            placeholder="Digite o texto do processo..."
                           />
-                          <div className="flex gap-1">
-                            <Button size="sm" onClick={saveNodeText} className="h-6 text-xs px-2">
+                          <div className="flex gap-2 mt-2">
+                            <Button 
+                              size="sm" 
+                              onClick={saveNodeText} 
+                              className="h-8 text-xs px-3 flex-1"
+                            >
+                              <Save className="h-3 w-3 mr-1" />
                               Salvar
                             </Button>
-                            <Button size="sm" variant="outline" onClick={cancelEditingNodeText} className="h-6 text-xs px-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={cancelEditingNodeText} 
+                              className="h-8 text-xs px-3 flex-1"
+                            >
                               Cancelar
                             </Button>
                           </div>
                         </div>
                       ) : (
                         <p 
-                          className="text-sm font-medium break-words cursor-text leading-tight"
+                          className="text-sm font-medium break-words cursor-text leading-tight pr-2"
                           onClick={(e) => {
                             if (!readOnly) {
                               e.stopPropagation();
@@ -1076,68 +1107,77 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                       )}
                     </div>
                     
-                    {/* Bottom row with badge and buttons */}
-                    <div className="flex items-center justify-between mt-2">
-                      <Badge variant="secondary" className="text-xs px-1 py-0">
-                        {EEMM_LEVELS[node.level].name}
-                      </Badge>
-                      
-                      {!readOnly && !isEditing && (
-                        <div className="flex gap-1">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    startEditingNodeText(node.id);
-                                  }}
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Editar Texto</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowConnectionMenu(showConnectionMenu === node.id ? null : node.id);
-                                  }}
-                                >
-                                  <Link2 className="h-3 w-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Criar Conexão</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          {isSelected && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 text-red-600"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteNode(node.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    {/* Bottom row with badge and buttons - only show when not editing */}
+                    {!isEditing && (
+                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200">
+                        <Badge variant="secondary" className="text-xs px-2 py-0">
+                          {EEMM_LEVELS[node.level].name}
+                        </Badge>
+                        
+                        {!readOnly && (
+                          <div className="flex gap-1">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startEditingNodeText(node.id);
+                                    }}
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar Texto</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowConnectionMenu(showConnectionMenu === node.id ? null : node.id);
+                                    }}
+                                  >
+                                    <Link2 className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Criar Conexão</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            
+                            {isSelected && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        showDeleteConfirmation(node.id);
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Excluir Processo</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
                   {/* Connection menu */}
