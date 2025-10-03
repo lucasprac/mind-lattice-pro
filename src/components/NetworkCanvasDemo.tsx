@@ -123,63 +123,72 @@ const DEMO_NETWORK_DATA = {
       from: "node-1",
       to: "node-2",
       type: "maladaptive" as const,
-      strength: 3
+      strength: 3,
+      ambivalent: false
     },
     {
       id: "conn-2",
       from: "node-3",
       to: "node-1",
       type: "maladaptive" as const,
-      strength: 4
+      strength: 4,
+      ambivalent: false
     },
     {
       id: "conn-3",
       from: "node-2",
       to: "node-4",
       type: "maladaptive" as const,
-      strength: 4
+      strength: 4,
+      ambivalent: false
     },
     {
       id: "conn-4",
       from: "node-4",
       to: "node-5",
       type: "maladaptive" as const,
-      strength: 5
+      strength: 5,
+      ambivalent: false
     },
     {
       id: "conn-5",
       from: "node-6",
       to: "node-7",
       type: "adaptive" as const,
-      strength: 4
+      strength: 4,
+      ambivalent: false
     },
     {
       id: "conn-6",
       from: "node-7",
       to: "node-9",
       type: "unchanged" as const,
-      strength: 3
+      strength: 3,
+      ambivalent: false
     },
     {
       id: "conn-7",
       from: "node-8",
       to: "node-5",
       type: "maladaptive" as const,
-      strength: 3
+      strength: 3,
+      ambivalent: false
     },
     {
       id: "conn-8",
       from: "node-5",
       to: "node-9",
       type: "maladaptive" as const,
-      strength: 4
+      strength: 4,
+      ambivalent: false
     },
     {
       id: "conn-9",
       from: "node-9",
       to: "node-2",
       type: "maladaptive" as const,
-      strength: 3
+      strength: 3,
+      ambivalent: false
     }
   ]
 };

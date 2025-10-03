@@ -16,7 +16,8 @@ import {
   Edit, 
   FileText, 
   Network,
-  Calendar
+  Calendar,
+  ArrowRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,6 +39,7 @@ interface PatientCardProps {
   onEdit?: (patient: Patient) => void;
   onViewRecords?: (patient: Patient) => void;
   onViewNetwork?: (patient: Patient) => void;
+  onViewRoadmap?: (patient: Patient) => void;
 }
 
 const statusConfig = {
@@ -63,7 +65,8 @@ export const PatientCard = ({
   patient, 
   onEdit, 
   onViewRecords, 
-  onViewNetwork 
+  onViewNetwork,
+  onViewRoadmap
 }: PatientCardProps) => {
   const statusInfo = statusConfig[patient.status];
   
@@ -97,6 +100,10 @@ export const PatientCard = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onViewRoadmap?.(patient)}>
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Roadmap de Intervenção
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onEdit?.(patient)}>
                 <Edit className="h-4 w-4 mr-2" />
                 Editar
@@ -148,21 +155,20 @@ export const PatientCard = ({
         <div className="flex gap-2 mt-4">
           <Button 
             size="sm" 
+            className="flex-1"
+            onClick={() => onViewRoadmap?.(patient)}
+          >
+            <ArrowRight className="h-4 w-4 mr-2" />
+            Roadmap
+          </Button>
+          <Button 
+            size="sm" 
             variant="outline" 
             className="flex-1"
             onClick={() => onViewRecords?.(patient)}
           >
             <FileText className="h-4 w-4 mr-2" />
             Prontuário
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="flex-1"
-            onClick={() => onViewNetwork?.(patient)}
-          >
-            <Network className="h-4 w-4 mr-2" />
-            Rede
           </Button>
         </div>
       </CardContent>

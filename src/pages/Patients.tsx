@@ -75,6 +75,11 @@ const Patients = () => {
     navigate("/networks", { state: { patientId: patient.id } });
   };
 
+  const handleViewRoadmap = (patient: Patient) => {
+    // Navigate to patient roadmap
+    navigate(`/patients/${patient.id}`);
+  };
+
   if (error) {
     return (
       <div className="space-y-6">
@@ -186,6 +191,7 @@ const Patients = () => {
                 onEdit={handleEditPatient}
                 onViewRecords={handleViewRecords}
                 onViewNetwork={handleViewNetwork}
+                onViewRoadmap={handleViewRoadmap}
               />
             ))}
           </div>

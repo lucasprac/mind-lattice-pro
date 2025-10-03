@@ -869,10 +869,10 @@ export const EnhancedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                             className="text-sm"
                           />
                           <div className="flex gap-1">
-                            <Button size="xs" onClick={saveNodeText}>
+                            <Button size="sm" onClick={saveNodeText}>
                               Salvar
                             </Button>
-                            <Button size="xs" variant="outline" onClick={cancelEditingNodeText}>
+                            <Button size="sm" variant="outline" onClick={cancelEditingNodeText}>
                               Cancelar
                             </Button>
                           </div>

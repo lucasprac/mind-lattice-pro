@@ -9,7 +9,7 @@ import {
   Zap,
   Target,
   MousePointer,
-  Resize,
+  Maximize2,
   Eye,
   Palette
 } from 'lucide-react';
@@ -132,7 +132,7 @@ const OptimizedNetworkDemo = () => {
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-green-100 p-2 rounded-full">
-                <Resize className="h-6 w-6 text-green-600" />
+                <Maximize2 className="h-6 w-6 text-green-600" />
               </div>
               <h2 className="text-lg font-semibold text-gray-900">
                 Layout Responsivo
@@ -205,7 +205,7 @@ const OptimizedNetworkDemo = () => {
             
             <div className="text-center">
               <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Resize className="h-8 w-8 text-green-600" />
+                <Maximize2 className="h-8 w-8 text-green-600" />
               </div>
               <h4 className="font-medium text-gray-900 mb-2">Layout Otimizado</h4>
               <Badge variant="secondary" className="text-xs">
