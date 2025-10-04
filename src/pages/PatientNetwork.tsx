@@ -4,14 +4,14 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { usePatientNetwork } from "@/hooks/usePatientNetwork";
-import { EnhancedNetworkCanvas } from "@/components/EnhancedNetworkCanvas";
+import { OptimizedNetworkCanvas } from "@/components/OptimizedNetworkCanvas";
 
 const PatientNetwork = () => {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
   const { patients } = usePatients();
   const { networkData, loading, saveNetwork } = usePatientNetwork(patientId || "");
-
+  
   const patient = patients.find(p => p.id === patientId);
 
   if (!patient) {
@@ -50,7 +50,7 @@ const PatientNetwork = () => {
             <p className="text-muted-foreground">Carregando rede...</p>
           </div>
         ) : (
-          <EnhancedNetworkCanvas
+          <OptimizedNetworkCanvas
             networkData={networkData}
             readOnly={false}
             onSave={saveNetwork}
