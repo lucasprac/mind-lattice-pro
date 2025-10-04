@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Network, Plus, Search, Filter, Info, BarChart3, Zap, GitBranch } from "lucide-react";
 import { NetworkDialog } from "@/components/NetworkDialog";
 import { NetworkCard } from "@/components/NetworkCard";
-import { NetworkCanvas } from "@/components/NetworkCanvas";
+import { OptimizedNetworkCanvas } from "@/components/OptimizedNetworkCanvas";
 import {
   Dialog,
   DialogContent,
@@ -117,6 +117,7 @@ const Networks = () => {
           total_connections: networkData.connections.length,
           dimensions_used: [...new Set(networkData.nodes.map((n: any) => n.dimension))],
           levels_used: [...new Set(networkData.nodes.map((n: any) => n.level))],
+          optimization_version: '2.0' // Track optimized canvas usage
         }
       }
     });
@@ -165,17 +166,15 @@ const Networks = () => {
         />
       </div>
 
-      {/* Info Card about EEMM */}
-      <Card className="p-6 bg-accent/30 border-accent">
+      {/* Info Card about Optimized EEMM */}
+      <Card className="p-6 bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
         <div className="flex gap-3">
-          <Info className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
+          <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-semibold mb-1 text-accent-foreground">Editor de Rede Interativo - Modelo EEMM</h3>
-            <p className="text-sm text-accent-foreground/80 mb-2">
-              Use o editor visual estilo Miro para criar e modificar conexões entre processos baseados no 
+            <h3 className="font-semibold mb-1 text-blue-900">Editor de Rede Interativo Otimizado - Modelo EEMM</h3>
+            <p className="text-sm text-blue-800 mb-2">
+              Editor visual otimizado com <strong>3 tipos de marcadores</strong>, <strong>edição controlada</strong> e <strong>confirmação de exclusão</strong> para criar e modificar conexões entre processos baseados no 
               <strong> Modelo Meta-evolutivo Estendido (EEMM)</strong>. 
-              Você pode arrastar elementos, conectar caixas de texto e visualizar as relações 
-              causais e funcionais entre diferentes dimensões psicológicas.
             </p>
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary" className="text-xs">
@@ -183,6 +182,9 @@ const Networks = () => {
               </Badge>
               <Badge variant="secondary" className="text-xs">
                 3 Níveis: Biologia, Psicologia, Social/Cultural
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                ✨ Versão Otimizada
               </Badge>
             </div>
           </div>
@@ -328,7 +330,7 @@ const Networks = () => {
             </div>
             <h3 className="text-xl font-semibold mb-2">Nenhuma rede criada</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Crie sua primeira rede de processos para um paciente. O editor visual 
+              Crie sua primeira rede de processos para um paciente. O editor visual otimizado 
               permite mapear relações complexas entre processos psicológicos baseadas no modelo EEMM.
             </p>
             <NetworkDialog 
@@ -359,7 +361,7 @@ const Networks = () => {
           
           {viewNetwork && (
             <div className="flex-1 overflow-auto max-h-[70vh]">
-              <NetworkCanvas
+              <OptimizedNetworkCanvas
                 networkData={viewNetwork.network_data}
                 readOnly={true}
               />
@@ -383,7 +385,7 @@ const Networks = () => {
           
           {editNetwork && (
             <div className="flex-1 overflow-auto max-h-[70vh]">
-              <NetworkCanvas
+              <OptimizedNetworkCanvas
                 networkData={editNetwork.network_data}
                 onSave={handleNetworkSave}
               />
