@@ -85,7 +85,7 @@ const EEMM_LEVELS = {
   social: { name: "Social/Cultural" }
 };
 
-// Only 3 marker types as requested
+// **OTIMIZAÇÃO 1: Apenas 3 diferentes tipos de marcadores**
 type MarkerType = 'arrow' | 'line' | 'circle';
 
 interface ProcessNode {
@@ -108,8 +108,8 @@ interface Connection {
   from: string;
   to: string;
   type: ConnectionType;
-  strength: number; // 0-5 intensity
-  ambivalent: boolean; // bidirectional arrow
+  strength: number;
+  ambivalent: boolean;
   startMarker: MarkerType;
   endMarker: MarkerType;
 }
@@ -151,13 +151,14 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
   const [editingConnection, setEditingConnection] = useState<Connection | null>(null);
   const [connectionEditDialog, setConnectionEditDialog] = useState(false);
   
-  // Process text editing - improved state management
+  // **OTIMIZAÇÃO 2: Text editing melhorado - só editável ao clicar no ícone**
   const [editingNodeText, setEditingNodeText] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   
-  // Delete confirmation dialog
+  // **OTIMIZAÇÃO 3: Dialog de confirmação para exclusão**
   const [deleteConfirmDialog, setDeleteConfirmDialog] = useState(false);
   const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
+  const [processNameToDelete, setProcessNameToDelete] = useState('');
   
   // New node form
   const [newNode, setNewNode] = useState({
@@ -168,7 +169,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     frequency: 3,
   });
 
-  // Only 3 marker options as requested
+  // **OTIMIZAÇÃO 1: Apenas 3 opções de marcadores**
   const markerOptions: { value: MarkerType; label: string; icon: React.ReactNode }[] = [
     { value: 'line', label: 'Traço', icon: <Minus className="h-4 w-4" /> },
     { value: 'arrow', label: 'Seta', icon: <ArrowRight className="h-4 w-4" /> },
@@ -201,20 +202,20 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
   };
 
   // Calculate optimal process size based on content
-  const calculateOptimalSize = (text: string, hasEditButton: boolean, hasConnectionButton: boolean) => {
+  const calculateOptimalSize = (text: string, hasButtons: boolean = true) => {
     const baseWidth = 200;
     const baseHeight = 80;
     
     // Calculate text width (rough estimation)
     const textWidth = Math.max(baseWidth, text.length * 8 + 40);
     
-    // Add space for buttons
-    const buttonSpace = (hasEditButton ? 30 : 0) + (hasConnectionButton ? 30 : 0);
-    const width = Math.min(textWidth + buttonSpace + 20, 320); // Max width
+    // Add space for buttons when needed
+    const buttonSpace = hasButtons ? 60 : 20; // Space for edit and connection buttons
+    const width = Math.min(textWidth + buttonSpace, 320); // Max width
     
     // Calculate height based on text wrapping
     const estimatedLines = Math.ceil(textWidth / (width - 60));
-    const height = Math.max(baseHeight, estimatedLines * 20 + 60);
+    const height = Math.max(baseHeight, estimatedLines * 20 + 80); // Increased for better button layout
     
     return { width, height };
   };
@@ -225,7 +226,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       return;
     }
 
-    const optimalSize = calculateOptimalSize(newNode.text, true, true);
+    const optimalSize = calculateOptimalSize(newNode.text, true);
     
     const node: ProcessNode = {
       id: `node-${Date.now()}`,
@@ -246,13 +247,17 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     toast.success("Processo adicionado");
   };
 
-  // Show delete confirmation dialog
+  // **OTIMIZAÇÃO 3: Mostrar dialog de confirmação com nome do processo**
   const showDeleteConfirmation = (nodeId: string) => {
-    setNodeToDelete(nodeId);
-    setDeleteConfirmDialog(true);
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setNodeToDelete(nodeId);
+      setProcessNameToDelete(node.text);
+      setDeleteConfirmDialog(true);
+    }
   };
 
-  // Confirm delete node
+  // **OTIMIZAÇÃO 3: Confirmar exclusão com segunda etapa**
   const confirmDeleteNode = () => {
     if (nodeToDelete) {
       saveToHistory();
@@ -263,6 +268,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     }
     setDeleteConfirmDialog(false);
     setNodeToDelete(null);
+    setProcessNameToDelete('');
   };
 
   const startConnectionFromNode = (nodeId: string, type: ConnectionType) => {
@@ -325,9 +331,10 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     toast.success("Conexão removida");
   };
 
+  // **OTIMIZAÇÃO 1: Ambivalente automaticamente coloca seta em cada ponta**
   const updateConnection = (connectionId: string, updates: Partial<Connection>) => {
     saveToHistory();
-    // Handle ambivalent connections - automatically set both ends to arrow
+    // Se ambivalente for selecionado, automaticamente define ambos marcadores como seta
     if (updates.ambivalent) {
       updates.startMarker = 'arrow';
       updates.endMarker = 'arrow';
@@ -339,6 +346,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     toast.success("Conexão atualizada");
   };
 
+  // **OTIMIZAÇÃO 2: Editar texto apenas ao clicar no ícone de editar**
   const startEditingNodeText = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
@@ -353,7 +361,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       setNodes(nodes.map(n => {
         if (n.id === editingNodeText) {
           // Recalculate optimal size for updated text
-          const optimalSize = calculateOptimalSize(editingText.trim(), true, true);
+          const optimalSize = calculateOptimalSize(editingText.trim(), true);
           return { 
             ...n, 
             text: editingText.trim(),
@@ -489,7 +497,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       const mouseY = (e.clientY - rect.top - pan.y) / scale;
 
       const newWidth = Math.max(150, mouseX - node.x);
-      const newHeight = Math.max(60, mouseY - node.y);
+      const newHeight = Math.max(80, mouseY - node.y);
 
       setNodes(nodes.map(n => 
         n.id === resizingNode 
@@ -694,25 +702,43 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
         </Card>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* **OTIMIZAÇÃO 3: Dialog de confirmação de exclusão melhorado** */}
       <AlertDialog open={deleteConfirmDialog} onOpenChange={setDeleteConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir esse processo? Esta ação não pode ser desfeita e todas as conexões relacionadas também serão removidas.
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Confirmar Exclusão do Processo
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <div className="text-base">
+                Tem certeza que deseja excluir esse processo?
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg border">
+                <span className="font-medium text-gray-900">Processo:</span>
+                <div className="text-sm text-gray-700 mt-1 italic">
+                  "{processNameToDelete}"
+                </div>
+              </div>
+              <div className="text-sm text-red-600">
+                ⚠️ Esta ação não pode ser desfeita e todas as conexões relacionadas também serão removidas.
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteNode} className="bg-red-600 hover:bg-red-700">
-              Excluir
+            <AlertDialogAction 
+              onClick={confirmDeleteNode} 
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Sim, Excluir Processo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Connection Edit Dialog with only 3 marker types */}
+      {/* **OTIMIZAÇÃO 1: Dialog de edição de conexão com apenas 3 marcadores** */}
       <Dialog open={connectionEditDialog} onOpenChange={setConnectionEditDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -745,7 +771,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                 </div>
               </div>
               
-              {/* Start Marker Selection - Only 3 options */}
+              {/* **OTIMIZAÇÃO 1: Seleção de marcador inicial - apenas 3 opções** */}
               <div>
                 <Label className="text-sm font-medium mb-2 block">Marcador Inicial</Label>
                 <div className="grid grid-cols-3 gap-2">
@@ -769,7 +795,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                 </div>
               </div>
               
-              {/* End Marker Selection - Only 3 options */}
+              {/* **OTIMIZAÇÃO 1: Seleção de marcador final - apenas 3 opções** */}
               <div>
                 <Label className="text-sm font-medium mb-2 block">Marcador Final</Label>
                 <div className="grid grid-cols-3 gap-2">
@@ -793,12 +819,13 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                 </div>
               </div>
               
+              {/* **OTIMIZAÇÃO 1: Checkbox ambivalente que automaticamente define setas em ambos os lados** */}
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="ambivalent"
                   checked={editingConnection.ambivalent}
                   onCheckedChange={(checked) => {
-                    // When ambivalent is selected, automatically set both ends to arrow
+                    // Quando ambivalente é selecionado, automaticamente define ambos marcadores como seta
                     if (checked) {
                       setEditingConnection({ 
                         ...editingConnection, 
@@ -874,7 +901,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
               position: 'absolute',
             }}
           >
-            {/* SVG for connections with only 3 marker types */}
+            {/* **OTIMIZAÇÃO 1: SVG para conexões com apenas 3 tipos de marcadores** */}
             <svg
               style={{
                 position: 'absolute',
@@ -887,10 +914,10 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
               }}
             >
               <defs>
-                {/* Generate markers for all combinations of 3 types */}
+                {/* Gerar marcadores para todas combinações dos 3 tipos */}
                 {['maladaptive', 'adaptive', 'unchanged'].map(type => (
                   <g key={type}>
-                    {/* Arrow markers */}
+                    {/* Marcadores de seta */}
                     <marker
                       id={`arrow-${type}-end`}
                       markerWidth="10"
@@ -920,7 +947,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                       />
                     </marker>
                     
-                    {/* Circle markers */}
+                    {/* Marcadores de círculo */}
                     <marker
                       id={`circle-${type}-end`}
                       markerWidth="10"
@@ -952,7 +979,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                       />
                     </marker>
                     
-                    {/* Line markers (no visual marker, just for reference) */}
+                    {/* Marcadores de linha (sem marcador visual, apenas para referência) */}
                     <marker
                       id={`line-${type}-end`}
                       markerWidth="0"
@@ -993,10 +1020,10 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                       onClick={(e) => handleConnectionClick(connection, e)}
                     />
                     
-                    {/* Optimized intensity label */}
+                    {/* Label de intensidade otimizado */}
                     {connection.strength > 0 && (
                       <g>
-                        {/* Background badge */}
+                        {/* Badge de fundo */}
                         <rect
                           x={labelPos.x - 12}
                           y={labelPos.y - 12}
@@ -1008,7 +1035,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                           strokeWidth="2"
                           style={{ pointerEvents: 'none' }}
                         />
-                        {/* Intensity number */}
+                        {/* Número da intensidade */}
                         <text
                           x={labelPos.x}
                           y={labelPos.y + 4}
@@ -1028,7 +1055,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
               })}
             </svg>
 
-            {/* Improved Nodes with better text editing design */}
+            {/* **OTIMIZAÇÃO 2: Nós melhorados com design de edição de texto otimizado** */}
             {nodes.map((node) => {
               const dimensionStyles = EEMM_DIMENSIONS[node.dimension];
               const isSelected = selectedNode === node.id;
@@ -1052,9 +1079,9 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                   }}
                   onMouseDown={(e) => handleMouseDown(e, node.id)}
                 >
-                  {/* Content area with improved layout for editing */}
+                  {/* **OTIMIZAÇÃO 2: Área de conteúdo com layout melhorado para edição** */}
                   <div className="flex-1 flex flex-col justify-between min-h-0">
-                    {/* Text content with improved editing design */}
+                    {/* **OTIMIZAÇÃO 2: Conteúdo de texto com design de edição melhorado** */}
                     <div className="flex-1 min-h-0">
                       {isEditing ? (
                         <div className="space-y-3 h-full" onClick={(e) => e.stopPropagation()}>
@@ -1070,7 +1097,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                               }
                             }}
                             autoFocus
-                            className="w-full h-20 text-sm p-2 border rounded resize-none"
+                            className="w-full h-20 text-sm p-2 border rounded resize-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                             placeholder="Digite o texto do processo..."
                           />
                           <div className="flex gap-2 mt-2">
@@ -1094,35 +1121,29 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                         </div>
                       ) : (
                         <p 
-                          className="text-sm font-medium break-words cursor-text leading-tight pr-2"
-                          onClick={(e) => {
-                            if (!readOnly) {
-                              e.stopPropagation();
-                              startEditingNodeText(node.id);
-                            }
-                          }}
+                          className="text-sm font-medium break-words leading-tight pr-2 cursor-default"
                         >
                           {node.text}
                         </p>
                       )}
                     </div>
                     
-                    {/* Bottom row with badge and buttons - only show when not editing */}
+                    {/* **OTIMIZAÇÃO 2: Linha inferior com badge e botões - melhor organização sem sobreposição** */}
                     {!isEditing && (
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200">
-                        <Badge variant="secondary" className="text-xs px-2 py-0">
+                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-opacity-30 border-gray-400">
+                        <Badge variant="secondary" className="text-xs px-2 py-0.5">
                           {EEMM_LEVELS[node.level].name}
                         </Badge>
                         
                         {!readOnly && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 ml-2">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-7 w-7 p-0"
+                                    className="h-7 w-7 p-0 hover:bg-white hover:bg-opacity-80"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       startEditingNodeText(node.id);
@@ -1141,7 +1162,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-7 w-7 p-0"
+                                    className="h-7 w-7 p-0 hover:bg-white hover:bg-opacity-80"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setShowConnectionMenu(showConnectionMenu === node.id ? null : node.id);
@@ -1180,7 +1201,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                     )}
                   </div>
                   
-                  {/* Connection menu */}
+                  {/* Menu de conexão */}
                   {showConnectionMenu === node.id && !readOnly && (
                     <div 
                       className="absolute top-full left-0 mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg p-2 z-50 flex flex-col gap-1"
@@ -1216,10 +1237,10 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                     </div>
                   )}
                   
-                  {/* Resize handle */}
+                  {/* Handle de redimensionamento */}
                   {isSelected && !readOnly && !isEditing && (
                     <div
-                      className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 rounded-tl cursor-nwse-resize"
+                      className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 rounded-tl cursor-nwse-resize opacity-75 hover:opacity-100"
                       onMouseDown={(e) => handleResizeStart(e, node.id)}
                       onClick={(e) => e.stopPropagation()}
                     />
