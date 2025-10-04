@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, Plus, X, Save } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
+import { usePatientMediators } from "@/hooks/usePatientMediators";
+import { usePatientNetwork } from "@/hooks/usePatientNetwork";
 
 // EEMM Dimensions and their mediators
 const EEMM_STRUCTURE = {
@@ -45,12 +46,10 @@ const PatientMediators = () => {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
   const { patients } = usePatients();
+  const { networkData, loading: networkLoading } = usePatientNetwork(patientId || "");
+  const { mediatorProcesses, loading: mediatorsLoading, saveMediators } = usePatientMediators(patientId || "");
   
-  // State for processes mapped to mediators
-  const [mediatorProcesses, setMediatorProcesses] = useState<{
-    [dimension: string]: { [mediator: string]: string[] }
-  }>({});
-  
+  // State for new process input
   const [newProcess, setNewProcess] = useState("");
   const [selectedMediator, setSelectedMediator] = useState<{
     dimension: string;
@@ -58,6 +57,9 @@ const PatientMediators = () => {
   } | null>(null);
 
   const patient = patients.find(p => p.id === patientId);
+
+  // Get all processes from the network
+  const availableProcesses = networkData.nodes.map(node => node.text);
 
   if (!patient) {
     return (
@@ -72,38 +74,49 @@ const PatientMediators = () => {
     );
   }
 
-  const addProcessToMediator = () => {
-    if (!selectedMediator || !newProcess.trim()) return;
+  const addProcessToMediator = (process: string) => {
+    if (!selectedMediator || !process.trim()) return;
 
-    setMediatorProcesses(prev => {
-      const dimension = selectedMediator.dimension;
-      const mediator = selectedMediator.mediator;
-      
-      return {
-        ...prev,
-        [dimension]: {
-          ...(prev[dimension] || {}),
-          [mediator]: [...(prev[dimension]?.[mediator] || []), newProcess.trim()]
-        }
-      };
-    });
+    const dimension = selectedMediator.dimension;
+    const mediator = selectedMediator.mediator;
+    
+    const updated = {
+      ...mediatorProcesses,
+      [dimension]: {
+        ...(mediatorProcesses[dimension] || {}),
+        [mediator]: [...(mediatorProcesses[dimension]?.[mediator] || []), process.trim()]
+      }
+    };
 
+    saveMediators(updated);
     setNewProcess("");
     setSelectedMediator(null);
   };
 
   const removeProcess = (dimension: string, mediator: string, processIndex: number) => {
-    setMediatorProcesses(prev => {
-      const processes = prev[dimension]?.[mediator] || [];
-      return {
-        ...prev,
-        [dimension]: {
-          ...prev[dimension],
-          [mediator]: processes.filter((_, i) => i !== processIndex)
-        }
-      };
-    });
+    const processes = mediatorProcesses[dimension]?.[mediator] || [];
+    const updated = {
+      ...mediatorProcesses,
+      [dimension]: {
+        ...mediatorProcesses[dimension],
+        [mediator]: processes.filter((_, i) => i !== processIndex)
+      }
+    };
+    saveMediators(updated);
   };
+
+  if (!patient) {
+    return (
+      <div className="p-6">
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">Paciente não encontrado</p>
+          <Button className="mt-4" onClick={() => navigate("/patients")}>
+            Voltar para Pacientes
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -125,10 +138,36 @@ const PatientMediators = () => {
       {/* Instructions */}
       <Card className="p-6 bg-gradient-to-r from-primary/10 to-secondary/10">
         <h3 className="font-semibold mb-2">Como usar:</h3>
-        <p className="text-sm text-muted-foreground">
-          Para cada mediador, adicione os processos identificados na etapa anterior. 
-          Esta organização ajuda a estruturar a análise funcional posterior.
+        <p className="text-sm text-muted-foreground mb-3">
+          Selecione os processos identificados na Análise da Rede e organize-os dentro dos mediadores apropriados de cada dimensão do EEMM.
         </p>
+        {networkLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando processos da rede...</p>
+        ) : availableProcesses.length === 0 ? (
+          <p className="text-sm text-amber-600">
+            ⚠️ Nenhum processo encontrado na Análise da Rede. Complete a etapa anterior primeiro.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2 mt-3">
+            <span className="text-sm font-medium">Processos disponíveis:</span>
+            {availableProcesses.map((process, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (selectedMediator) {
+                    addProcessToMediator(process);
+                  }
+                }}
+                disabled={!selectedMediator}
+                className="text-xs"
+              >
+                {process}
+              </Button>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* EEMM Dimensions with Mediators */}
@@ -185,20 +224,31 @@ const PatientMediators = () => {
 
                     {/* Add process input */}
                     {isSelected && (
-                      <div className="mt-3 flex gap-2">
-                        <Input
-                          value={newProcess}
-                          onChange={(e) => setNewProcess(e.target.value)}
-                          placeholder="Digite o processo..."
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") addProcessToMediator();
-                            if (e.key === "Escape") setSelectedMediator(null);
-                          }}
-                          autoFocus
-                        />
-                        <Button onClick={addProcessToMediator} size="sm">
-                          Adicionar
-                        </Button>
+                      <div className="mt-3 space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            value={newProcess}
+                            onChange={(e) => setNewProcess(e.target.value)}
+                            placeholder="Digite um processo personalizado..."
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newProcess.trim()) {
+                                addProcessToMediator(newProcess);
+                              }
+                              if (e.key === "Escape") setSelectedMediator(null);
+                            }}
+                            autoFocus
+                          />
+                          <Button 
+                            onClick={() => addProcessToMediator(newProcess)} 
+                            size="sm"
+                            disabled={!newProcess.trim()}
+                          >
+                            Adicionar
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Ou clique em um processo disponível acima
+                        </p>
                       </div>
                     )}
                   </div>

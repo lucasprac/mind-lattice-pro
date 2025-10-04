@@ -3,12 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
+import { usePatientNetwork } from "@/hooks/usePatientNetwork";
 import { EnhancedNetworkCanvas } from "@/components/EnhancedNetworkCanvas";
 
 const PatientNetwork = () => {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
   const { patients } = usePatients();
+  const { networkData, loading, saveNetwork } = usePatientNetwork(patientId || "");
 
   const patient = patients.find(p => p.id === patientId);
 
@@ -43,14 +45,17 @@ const PatientNetwork = () => {
       </div>
 
       <Card className="p-6">
-        <EnhancedNetworkCanvas
-          networkData={{ nodes: [], connections: [] }}
-          readOnly={false}
-          onSave={(data) => {
-            console.log("Network saved:", data);
-            // TODO: Save to database
-          }}
-        />
+        {loading ? (
+          <div className="flex items-center justify-center p-12">
+            <p className="text-muted-foreground">Carregando rede...</p>
+          </div>
+        ) : (
+          <EnhancedNetworkCanvas
+            networkData={networkData}
+            readOnly={false}
+            onSave={saveNetwork}
+          />
+        )}
       </Card>
     </div>
   );

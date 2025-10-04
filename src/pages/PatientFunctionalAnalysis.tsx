@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,8 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
+import { usePatientMediators } from "@/hooks/usePatientMediators";
+import { usePatientFunctionalAnalysis } from "@/hooks/usePatientFunctionalAnalysis";
 
 // Guiding questions organized by dimension and aspect
 const GUIDING_QUESTIONS = {
@@ -151,18 +153,79 @@ const PatientFunctionalAnalysis = () => {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
   const { patients } = usePatients();
+  const { getAllProcesses, loading: mediatorsLoading } = usePatientMediators(patientId || "");
+  const { analyses: savedAnalyses, saveAnalysis, getAnalysisForProcess, loading: analysisLoading } = usePatientFunctionalAnalysis(patientId || "");
 
   const [selectedProcess, setSelectedProcess] = useState("");
   const [selectedDimension, setSelectedDimension] = useState<keyof typeof GUIDING_QUESTIONS>("cognition");
-  const [analyses, setAnalyses] = useState<{
-    [process: string]: {
-      selection: string;
-      variation: string;
-      retention: string;
-    }
-  }>({});
+  
+  // Form state
+  const [selectionAnalysis, setSelectionAnalysis] = useState("");
+  const [variationAnalysis, setVariationAnalysis] = useState("");
+  const [retentionAnalysis, setRetentionAnalysis] = useState("");
+  const [biofisiologicoSelection, setBiofisiologicoSelection] = useState("");
+  const [biofisiologicoVariation, setBiofisiologicoVariation] = useState("");
+  const [biofisiologicoRetention, setBiofisiologicoRetention] = useState("");
+  const [socioculturalSelection, setSocioculturalSelection] = useState("");
+  const [socioculturalVariation, setSocioculturalVariation] = useState("");
+  const [socioculturalRetention, setSocioculturalRetention] = useState("");
 
   const patient = patients.find(p => p.id === patientId);
+  const availableProcesses = getAllProcesses();
+
+  // Load existing analysis when process is selected
+  useEffect(() => {
+    if (selectedProcess) {
+      const existing = getAnalysisForProcess(selectedProcess);
+      if (existing) {
+        setSelectionAnalysis(existing.selectionAnalysis);
+        setVariationAnalysis(existing.variationAnalysis);
+        setRetentionAnalysis(existing.retentionAnalysis);
+        setBiofisiologicoSelection(existing.biofisiologicoSelection);
+        setBiofisiologicoVariation(existing.biofisiologicoVariation);
+        setBiofisiologicoRetention(existing.biofisiologicoRetention);
+        setSocioculturalSelection(existing.socioculturalSelection);
+        setSocioculturalVariation(existing.socioculturalVariation);
+        setSocioculturalRetention(existing.socioculturalRetention);
+        setSelectedDimension(existing.dimension as keyof typeof GUIDING_QUESTIONS);
+      } else {
+        // Clear form for new analysis
+        setSelectionAnalysis("");
+        setVariationAnalysis("");
+        setRetentionAnalysis("");
+        setBiofisiologicoSelection("");
+        setBiofisiologicoVariation("");
+        setBiofisiologicoRetention("");
+        setSocioculturalSelection("");
+        setSocioculturalVariation("");
+        setSocioculturalRetention("");
+      }
+    }
+  }, [selectedProcess]);
+
+  const handleSave = async () => {
+    if (!selectedProcess || !patientId) return;
+
+    const existing = getAnalysisForProcess(selectedProcess);
+    const success = await saveAnalysis({
+      id: existing?.id,
+      processName: selectedProcess,
+      dimension: selectedDimension,
+      selectionAnalysis,
+      variationAnalysis,
+      retentionAnalysis,
+      biofisiologicoSelection,
+      biofisiologicoVariation,
+      biofisiologicoRetention,
+      socioculturalSelection,
+      socioculturalVariation,
+      socioculturalRetention,
+    });
+
+    if (success) {
+      // Analysis saved successfully
+    }
+  };
 
   if (!patient) {
     return (
@@ -177,21 +240,18 @@ const PatientFunctionalAnalysis = () => {
     );
   }
 
-  const updateAnalysis = (aspect: "selection" | "variation" | "retention", value: string) => {
-    setAnalyses(prev => ({
-      ...prev,
-      [selectedProcess]: {
-        ...(prev[selectedProcess] || { selection: "", variation: "", retention: "" }),
-        [aspect]: value
-      }
-    }));
-  };
-
-  const currentAnalysis = analyses[selectedProcess] || {
-    selection: "",
-    variation: "",
-    retention: ""
-  };
+  if (!patient) {
+    return (
+      <div className="p-6">
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">Paciente não encontrado</p>
+          <Button className="mt-4" onClick={() => navigate("/patients")}>
+            Voltar para Pacientes
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -230,9 +290,15 @@ const PatientFunctionalAnalysis = () => {
                 <SelectValue placeholder="Escolha um processo para analisar" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="process1">Processo de Exemplo 1</SelectItem>
-                <SelectItem value="process2">Processo de Exemplo 2</SelectItem>
-                {/* TODO: Load from previous step */}
+                {mediatorsLoading ? (
+                  <SelectItem value="loading">Carregando...</SelectItem>
+                ) : availableProcesses.length === 0 ? (
+                  <SelectItem value="none">Nenhum processo disponível</SelectItem>
+                ) : (
+                  availableProcesses.map(process => (
+                    <SelectItem key={process} value={process}>{process}</SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -295,8 +361,8 @@ const PatientFunctionalAnalysis = () => {
               ))}
             </Accordion>
             <Textarea
-              value={currentAnalysis.selection}
-              onChange={(e) => updateAnalysis("selection", e.target.value)}
+              value={selectionAnalysis}
+              onChange={(e) => setSelectionAnalysis(e.target.value)}
               placeholder="Descreva a análise de seleção..."
               className="min-h-[300px]"
             />
@@ -332,8 +398,8 @@ const PatientFunctionalAnalysis = () => {
               ))}
             </Accordion>
             <Textarea
-              value={currentAnalysis.variation}
-              onChange={(e) => updateAnalysis("variation", e.target.value)}
+              value={variationAnalysis}
+              onChange={(e) => setVariationAnalysis(e.target.value)}
               placeholder="Descreva a análise de variação..."
               className="min-h-[300px]"
             />
@@ -369,12 +435,21 @@ const PatientFunctionalAnalysis = () => {
               ))}
             </Accordion>
             <Textarea
-              value={currentAnalysis.retention}
-              onChange={(e) => updateAnalysis("retention", e.target.value)}
+              value={retentionAnalysis}
+              onChange={(e) => setRetentionAnalysis(e.target.value)}
               placeholder="Descreva a análise de retenção..."
               className="min-h-[300px]"
             />
           </Card>
+        </div>
+      )}
+
+      {selectedProcess && (
+        <div className="flex justify-end">
+          <Button onClick={handleSave} size="lg">
+            <Save className="h-4 w-4 mr-2" />
+            Salvar Análise
+          </Button>
         </div>
       )}
 

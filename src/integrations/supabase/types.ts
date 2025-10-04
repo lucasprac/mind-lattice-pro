@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      functional_analysis: {
+        Row: {
+          biofisiologico_retention: string | null
+          biofisiologico_selection: string | null
+          biofisiologico_variation: string | null
+          created_at: string
+          dimension: string
+          id: string
+          patient_id: string
+          process_name: string
+          retention_analysis: string | null
+          selection_analysis: string | null
+          sociocultural_retention: string | null
+          sociocultural_selection: string | null
+          sociocultural_variation: string | null
+          therapist_id: string
+          updated_at: string
+          variation_analysis: string | null
+        }
+        Insert: {
+          biofisiologico_retention?: string | null
+          biofisiologico_selection?: string | null
+          biofisiologico_variation?: string | null
+          created_at?: string
+          dimension: string
+          id?: string
+          patient_id: string
+          process_name: string
+          retention_analysis?: string | null
+          selection_analysis?: string | null
+          sociocultural_retention?: string | null
+          sociocultural_selection?: string | null
+          sociocultural_variation?: string | null
+          therapist_id: string
+          updated_at?: string
+          variation_analysis?: string | null
+        }
+        Update: {
+          biofisiologico_retention?: string | null
+          biofisiologico_selection?: string | null
+          biofisiologico_variation?: string | null
+          created_at?: string
+          dimension?: string
+          id?: string
+          patient_id?: string
+          process_name?: string
+          retention_analysis?: string | null
+          selection_analysis?: string | null
+          sociocultural_retention?: string | null
+          sociocultural_selection?: string | null
+          sociocultural_variation?: string | null
+          therapist_id?: string
+          updated_at?: string
+          variation_analysis?: string | null
+        }
+        Relationships: []
+      }
       interventions: {
         Row: {
           category: string
@@ -127,6 +184,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      patient_mediators: {
+        Row: {
+          created_at: string
+          dimension: string
+          id: string
+          mediator: string
+          patient_id: string
+          processes: string[]
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dimension: string
+          id?: string
+          mediator: string
+          patient_id: string
+          processes?: string[]
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dimension?: string
+          id?: string
+          mediator?: string
+          patient_id?: string
+          processes?: string[]
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       patients: {
         Row: {
