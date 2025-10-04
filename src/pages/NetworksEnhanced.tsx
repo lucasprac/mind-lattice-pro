@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Network, Plus, Search, Filter, Info, BarChart3 } from "lucide-react";
 import { NetworkDialog } from "@/components/NetworkDialog";
 import { NetworkCard } from "@/components/NetworkCard";
-import { EnhancedNetworkCanvas } from "@/components/EnhancedNetworkCanvas";
+import { OptimizedNetworkCanvas } from "@/components/OptimizedNetworkCanvas";
 import {
   Dialog,
   DialogContent,
@@ -116,6 +116,7 @@ const NetworksEnhanced = () => {
           total_connections: networkData.connections.length,
           dimensions_used: [...new Set(networkData.nodes.map((n: any) => n.dimension))],
           levels_used: [...new Set(networkData.nodes.map((n: any) => n.level))],
+          optimization_version: '2.0' // Track optimized canvas usage
         }
       }
     });
@@ -155,7 +156,7 @@ const NetworksEnhanced = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">Redes de Processos</h1>
           <p className="text-muted-foreground">
-            Editor aprimorado com funcionalidades similares ao Miro
+            Editor otimizado com as 3 funcionalidades implementadas
           </p>
         </div>
         <NetworkDialog 
@@ -164,26 +165,26 @@ const NetworksEnhanced = () => {
         />
       </div>
 
-      {/* Info Card about Enhanced EEMM Editor */}
+      {/* Info Card about Optimized EEMM Editor */}
       <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
         <div className="flex gap-3">
           <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-semibold mb-1 text-blue-900">🚀 Editor Aprimorado - Similar ao Miro</h3>
+            <h3 className="font-semibold mb-1 text-blue-900">🚀 Editor Otimizado - Com Novas Funcionalidades</h3>
             <p className="text-sm text-blue-800 mb-2">
-              Agora com <strong>redimensionamento de caixas de texto</strong>, 
-              <strong>3 tipos de setas especializadas</strong>, <strong>navegação fluida com pan/zoom</strong> 
-              e interface otimizada similar ao Miro.
+              Agora com <strong>3 tipos de marcadores nas conexões</strong>, 
+              <strong>edição de texto apenas com ícone</strong>, <strong>confirmação de exclusão</strong> 
+              e design sem sobreposição.
             </p>
             <div className="flex flex-wrap gap-2">
               <Badge className="text-xs bg-red-100 text-red-800 border-red-300">
-                ➡️ Maladaptativa (Prejudicial)
+                ➡️ Seta (Maladaptativa)
               </Badge>
               <Badge className="text-xs bg-gray-100 text-gray-800 border-gray-300">
-                ⋯ Sem mudança (Estável)
+                — Traço (Sem mudança)
               </Badge>
               <Badge className="text-xs bg-green-100 text-green-800 border-green-300">
-                ➡️ Adaptativa (Benéfica)
+                ● Círculo (Adaptativa)
               </Badge>
             </div>
           </div>
@@ -329,8 +330,8 @@ const NetworksEnhanced = () => {
             </div>
             <h3 className="text-xl font-semibold mb-2">Nenhuma rede criada</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Crie sua primeira rede de processos com o <strong>editor aprimorado</strong>. 
-              Interface similar ao Miro com redimensionamento, 3 tipos de setas e navegação fluida.
+              Crie sua primeira rede de processos com o <strong>editor otimizado</strong>. 
+              Interface com 3 tipos de marcadores, edição controlada por ícone e confirmação de exclusão.
             </p>
             <NetworkDialog 
               onNetworkAdded={refetch}
@@ -360,7 +361,7 @@ const NetworksEnhanced = () => {
           
           {viewNetwork && (
             <div className="flex-1 overflow-auto max-h-[70vh]">
-              <EnhancedNetworkCanvas
+              <OptimizedNetworkCanvas
                 networkData={viewNetwork.network_data}
                 readOnly={true}
               />
@@ -378,13 +379,13 @@ const NetworksEnhanced = () => {
               ✏️ Editando: {editNetwork?.name}
             </DialogTitle>
             <DialogDescription>
-              Use o editor aprimorado para modificar a rede de processos do paciente {editNetwork?.patient?.full_name}
+              Use o editor otimizado para modificar a rede de processos do paciente {editNetwork?.patient?.full_name}
             </DialogDescription>
           </DialogHeader>
           
           {editNetwork && (
             <div className="flex-1 overflow-auto max-h-[70vh]">
-              <EnhancedNetworkCanvas
+              <OptimizedNetworkCanvas
                 networkData={editNetwork.network_data}
                 onSave={handleNetworkSave}
               />
