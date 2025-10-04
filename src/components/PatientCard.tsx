@@ -121,41 +121,52 @@ export const PatientCard = ({
         </div>
       </CardHeader>
       
-      <CardContent className="pt-0">
-        <div className="space-y-2">
-          {patient.email && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="h-4 w-4" />
-              <span>{patient.email}</span>
-            </div>
-          )}
-          
-          {patient.phone && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Phone className="h-4 w-4" />
-              <span>{patient.phone}</span>
-            </div>
-          )}
-          
-          {patient.address && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span className="truncate">{patient.address}</span>
-            </div>
-          )}
-          
-          <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
-            <Calendar className="h-4 w-4" />
-            <span>
-              Criado em {format(new Date(patient.created_at), "dd/MM/yyyy", { locale: ptBR })}
-            </span>
+      <CardContent className="pt-4">
+        {/* Contact Information Section */}
+        {(patient.email || patient.phone || patient.address) && (
+          <div className="space-y-3 pb-4 mb-4 border-b">
+            {patient.email && (
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex-shrink-0 w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <span className="text-foreground">{patient.email}</span>
+              </div>
+            )}
+            
+            {patient.phone && (
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex-shrink-0 w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <span className="text-foreground">{patient.phone}</span>
+              </div>
+            )}
+            
+            {patient.address && (
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex-shrink-0 w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <span className="text-foreground line-clamp-2">{patient.address}</span>
+              </div>
+            )}
           </div>
+        )}
+        
+        {/* Metadata Section */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>
+            Criado em {format(new Date(patient.created_at), "dd/MM/yyyy", { locale: ptBR })}
+          </span>
         </div>
         
-        <div className="flex gap-2 mt-4">
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-2">
           <Button 
             size="sm" 
-            className="flex-1"
+            className="w-full"
             onClick={() => onViewRoadmap?.(patient)}
           >
             <ArrowRight className="h-4 w-4 mr-2" />
@@ -164,7 +175,7 @@ export const PatientCard = ({
           <Button 
             size="sm" 
             variant="outline" 
-            className="flex-1"
+            className="w-full"
             onClick={() => onViewRecords?.(patient)}
           >
             <FileText className="h-4 w-4 mr-2" />
