@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { usePatientNetwork } from "@/hooks/usePatientNetwork";
@@ -43,6 +44,30 @@ const PatientNetwork = () => {
           Construa a rede de processos identificando características relevantes e suas conexões
         </p>
       </div>
+
+      {/* Journey Progress Card */}
+      <Card className="p-4 bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-sm">
+                Etapa 2 de 5
+              </Badge>
+              <span className="text-sm font-medium">Jornada de Análise</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Processos Criados:</span>
+              <Badge variant="outline" className="bg-white">{networkData.nodes.length}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Conexões:</span>
+              <Badge variant="outline" className="bg-white">{networkData.connections.length}</Badge>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <Card className="p-6">
         {loading ? (

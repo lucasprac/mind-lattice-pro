@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, X, Save } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
@@ -118,6 +119,11 @@ const PatientMediators = () => {
     );
   }
 
+  const totalProcessesInMediators = Object.values(mediatorProcesses).reduce(
+    (sum, mediators) => sum + Object.values(mediators).reduce((s, procs) => s + procs.length, 0),
+    0
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -134,6 +140,30 @@ const PatientMediators = () => {
           Organize os processos identificados dentro dos mediadores de cada dimensão do EEMM
         </p>
       </div>
+
+      {/* Journey Progress Card */}
+      <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-sm">
+                Etapa 3 de 5
+              </Badge>
+              <span className="text-sm font-medium">Jornada de Análise</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Processos da Rede:</span>
+              <Badge variant="outline" className="bg-white">{availableProcesses.length}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Organizados em Mediadores:</span>
+              <Badge variant="outline" className="bg-white">{totalProcessesInMediators}</Badge>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Instructions */}
       <Card className="p-6 bg-gradient-to-r from-primary/10 to-secondary/10">

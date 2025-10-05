@@ -31,6 +31,8 @@ export interface ProcessNode {
   frequency: number;
 }
 
+type MarkerType = 'arrow' | 'line' | 'circle';
+
 export interface Connection {
   id: string;
   from: string;
@@ -38,6 +40,8 @@ export interface Connection {
   type: 'maladaptive' | 'unchanged' | 'adaptive';
   strength: number;
   ambivalent: boolean;
+  startMarker: MarkerType;
+  endMarker: MarkerType;
 }
 
 export interface NetworkData {
@@ -74,7 +78,17 @@ export const usePatientNetwork = (patientId: string) => {
       }
 
       if (data) {
-        setNetworkData(data.network_data as any as NetworkData);
+        const networkData = data.network_data as any as NetworkData;
+        // Ensure all connections have startMarker and endMarker for backward compatibility
+        const normalizedConnections = networkData.connections.map(conn => ({
+          ...conn,
+          startMarker: conn.startMarker || 'line' as MarkerType,
+          endMarker: conn.endMarker || 'arrow' as MarkerType,
+        }));
+        setNetworkData({
+          nodes: networkData.nodes,
+          connections: normalizedConnections
+        });
       }
     } catch (err) {
       console.error("Erro inesperado:", err);

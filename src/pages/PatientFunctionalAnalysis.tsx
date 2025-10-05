@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Accordion,
@@ -253,6 +254,9 @@ const PatientFunctionalAnalysis = () => {
     );
   }
 
+  const analyzedCount = savedAnalyses.length;
+  const totalProcesses = availableProcesses.length;
+
   return (
     <div className="space-y-6">
       <div>
@@ -269,6 +273,30 @@ const PatientFunctionalAnalysis = () => {
           Análise idiográfica dos processos através de Seleção, Variação e Retenção
         </p>
       </div>
+
+      {/* Journey Progress Card */}
+      <Card className="p-4 bg-gradient-to-r from-purple-50 to-green-50 border-purple-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-sm">
+                Etapa 4 de 5
+              </Badge>
+              <span className="text-sm font-medium">Jornada de Análise</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Processos Disponíveis:</span>
+              <Badge variant="outline" className="bg-white">{totalProcesses}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Analisados:</span>
+              <Badge variant="outline" className="bg-white">{analyzedCount}/{totalProcesses}</Badge>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Instructions */}
       <Card className="p-6 bg-gradient-to-r from-primary/10 to-secondary/10">
