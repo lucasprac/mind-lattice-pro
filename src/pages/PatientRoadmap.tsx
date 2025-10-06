@@ -23,7 +23,7 @@ const ROADMAP_STEPS = [
     description: "Escala PBAT (Process-Based Assessment Tool)",
     icon: ClipboardList,
     color: "bg-blue-500",
-    status: "development",
+    status: "active",
     path: "/assessment"
   },
   {

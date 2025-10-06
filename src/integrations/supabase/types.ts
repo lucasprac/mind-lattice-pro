@@ -185,6 +185,138 @@ export type Database = {
           },
         ]
       }
+      patient_assessments: {
+        Row: {
+          assessment_date: string
+          created_at: string
+          id: string
+          notes: string | null
+          patient_id: string
+          q1: number | null
+          q10: number | null
+          q11: number | null
+          q12: number | null
+          q13: number | null
+          q14: number | null
+          q15: number | null
+          q16: number | null
+          q17: number | null
+          q18: number | null
+          q19: number | null
+          q2: number | null
+          q20: number | null
+          q21: number | null
+          q22: number | null
+          q23: number | null
+          q24: number | null
+          q25: number | null
+          q26: number | null
+          q27: number | null
+          q28: number | null
+          q29: string | null
+          q3: number | null
+          q30: number | null
+          q31: number | null
+          q32: number | null
+          q33: number | null
+          q34: number | null
+          q4: number | null
+          q5: number | null
+          q6: number | null
+          q7: number | null
+          q8: number | null
+          q9: number | null
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          assessment_date?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          patient_id: string
+          q1?: number | null
+          q10?: number | null
+          q11?: number | null
+          q12?: number | null
+          q13?: number | null
+          q14?: number | null
+          q15?: number | null
+          q16?: number | null
+          q17?: number | null
+          q18?: number | null
+          q19?: number | null
+          q2?: number | null
+          q20?: number | null
+          q21?: number | null
+          q22?: number | null
+          q23?: number | null
+          q24?: number | null
+          q25?: number | null
+          q26?: number | null
+          q27?: number | null
+          q28?: number | null
+          q29?: string | null
+          q3?: number | null
+          q30?: number | null
+          q31?: number | null
+          q32?: number | null
+          q33?: number | null
+          q34?: number | null
+          q4?: number | null
+          q5?: number | null
+          q6?: number | null
+          q7?: number | null
+          q8?: number | null
+          q9?: number | null
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          assessment_date?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          q1?: number | null
+          q10?: number | null
+          q11?: number | null
+          q12?: number | null
+          q13?: number | null
+          q14?: number | null
+          q15?: number | null
+          q16?: number | null
+          q17?: number | null
+          q18?: number | null
+          q19?: number | null
+          q2?: number | null
+          q20?: number | null
+          q21?: number | null
+          q22?: number | null
+          q23?: number | null
+          q24?: number | null
+          q25?: number | null
+          q26?: number | null
+          q27?: number | null
+          q28?: number | null
+          q29?: string | null
+          q3?: number | null
+          q30?: number | null
+          q31?: number | null
+          q32?: number | null
+          q33?: number | null
+          q34?: number | null
+          q4?: number | null
+          q5?: number | null
+          q6?: number | null
+          q7?: number | null
+          q8?: number | null
+          q9?: number | null
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       patient_mediators: {
         Row: {
           created_at: string

@@ -19,6 +19,9 @@ import PatientRoadmap from "./pages/PatientRoadmap";
 import PatientNetwork from "./pages/PatientNetwork";
 import PatientMediators from "./pages/PatientMediators";
 import PatientFunctionalAnalysis from "./pages/PatientFunctionalAnalysis";
+import PatientAssessment from "./pages/PatientAssessment";
+import Mediators from "./pages/Mediators";
+import FunctionalAnalysis from "./pages/FunctionalAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,11 +39,14 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
             <Route path="/patients" element={<ProtectedRoute><AppLayout><Patients /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId" element={<ProtectedRoute><AppLayout><PatientRoadmap /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/assessment" element={<ProtectedRoute><AppLayout><PatientAssessment /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/network" element={<ProtectedRoute><AppLayout><PatientNetwork /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/mediators" element={<ProtectedRoute><AppLayout><PatientMediators /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/functional" element={<ProtectedRoute><AppLayout><PatientFunctionalAnalysis /></AppLayout></ProtectedRoute>} />
             <Route path="/eemm" element={<ProtectedRoute><AppLayout><EEMMMatrix /></AppLayout></ProtectedRoute>} />
             <Route path="/networks" element={<ProtectedRoute><AppLayout><Networks /></AppLayout></ProtectedRoute>} />
+            <Route path="/mediators" element={<ProtectedRoute><AppLayout><Mediators /></AppLayout></ProtectedRoute>} />
+            <Route path="/functional-analysis" element={<ProtectedRoute><AppLayout><FunctionalAnalysis /></AppLayout></ProtectedRoute>} />
             <Route path="/interventions" element={<ProtectedRoute><AppLayout><Interventions /></AppLayout></ProtectedRoute>} />
             <Route path="/records" element={<ProtectedRoute><AppLayout><Records /></AppLayout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
