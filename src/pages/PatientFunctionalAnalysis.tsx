@@ -332,7 +332,7 @@ const PatientFunctionalAnalysis = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Dimensão/Nível</label>
+            <label className="text-sm font-medium">Mediadores</label>
             <Select value={selectedDimension} onValueChange={(v) => setSelectedDimension(v as keyof typeof GUIDING_QUESTIONS)}>
               <SelectTrigger>
                 <SelectValue />
