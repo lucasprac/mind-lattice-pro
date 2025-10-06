@@ -24,6 +24,7 @@ export type Database = {
           id: string
           patient_id: string
           process_name: string
+          record_id: string | null
           retention_analysis: string | null
           selection_analysis: string | null
           sociocultural_retention: string | null
@@ -42,6 +43,7 @@ export type Database = {
           id?: string
           patient_id: string
           process_name: string
+          record_id?: string | null
           retention_analysis?: string | null
           selection_analysis?: string | null
           sociocultural_retention?: string | null
@@ -60,6 +62,7 @@ export type Database = {
           id?: string
           patient_id?: string
           process_name?: string
+          record_id?: string | null
           retention_analysis?: string | null
           selection_analysis?: string | null
           sociocultural_retention?: string | null
@@ -69,7 +72,15 @@ export type Database = {
           updated_at?: string
           variation_analysis?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "functional_analysis_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "records"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       interventions: {
         Row: {
@@ -139,9 +150,11 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_general: boolean | null
           name: string
           network_data: Json
           patient_id: string
+          record_id: string | null
           therapist_id: string
           updated_at: string
           version: number | null
@@ -150,9 +163,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_general?: boolean | null
           name: string
           network_data?: Json
           patient_id: string
+          record_id?: string | null
           therapist_id: string
           updated_at?: string
           version?: number | null
@@ -161,9 +176,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_general?: boolean | null
           name?: string
           network_data?: Json
           patient_id?: string
+          record_id?: string | null
           therapist_id?: string
           updated_at?: string
           version?: number | null
@@ -174,6 +191,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "networks_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "records"
             referencedColumns: ["id"]
           },
           {
@@ -226,6 +250,7 @@ export type Database = {
           q7: number | null
           q8: number | null
           q9: number | null
+          record_id: string | null
           therapist_id: string
           updated_at: string
         }
@@ -269,6 +294,7 @@ export type Database = {
           q7?: number | null
           q8?: number | null
           q9?: number | null
+          record_id?: string | null
           therapist_id: string
           updated_at?: string
         }
@@ -312,10 +338,19 @@ export type Database = {
           q7?: number | null
           q8?: number | null
           q9?: number | null
+          record_id?: string | null
           therapist_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "patient_assessments_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "records"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patient_mediators: {
         Row: {
@@ -325,6 +360,7 @@ export type Database = {
           mediator: string
           patient_id: string
           processes: string[]
+          record_id: string | null
           therapist_id: string
           updated_at: string
         }
@@ -335,6 +371,7 @@ export type Database = {
           mediator: string
           patient_id: string
           processes?: string[]
+          record_id?: string | null
           therapist_id: string
           updated_at?: string
         }
@@ -345,10 +382,19 @@ export type Database = {
           mediator?: string
           patient_id?: string
           processes?: string[]
+          record_id?: string | null
           therapist_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "patient_mediators_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "records"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patients: {
         Row: {

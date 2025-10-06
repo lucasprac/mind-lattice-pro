@@ -49,7 +49,7 @@ export interface NetworkData {
   connections: Connection[];
 }
 
-export const usePatientNetwork = (patientId: string) => {
+export const usePatientNetwork = (patientId: string, recordId?: string, isGeneral: boolean = false) => {
   const [networkData, setNetworkData] = useState<NetworkData>({ nodes: [], connections: [] });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -62,14 +62,24 @@ export const usePatientNetwork = (patientId: string) => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from("networks")
         .select("*")
         .eq("patient_id", patientId)
-        .eq("therapist_id", user.id)
+        .eq("therapist_id", user.id);
+
+      // Filter by record_id or is_general flag
+      if (isGeneral) {
+        query = query.eq("is_general", true);
+      } else if (recordId) {
+        query = query.eq("record_id", recordId);
+      }
+
+      const { data, error } = await query
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
         console.error("Erro ao buscar rede:", error);
@@ -105,12 +115,22 @@ export const usePatientNetwork = (patientId: string) => {
 
     try {
       // Check if network exists
-      const { data: existing } = await supabase
+      let query = supabase
         .from("networks")
         .select("id")
         .eq("patient_id", patientId)
-        .eq("therapist_id", user.id)
-        .single();
+        .eq("therapist_id", user.id);
+
+      if (isGeneral) {
+        query = query.eq("is_general", true);
+      } else if (recordId) {
+        query = query.eq("record_id", recordId);
+      }
+
+      const { data: existing } = await query
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (existing) {
         // Update existing
@@ -134,7 +154,9 @@ export const usePatientNetwork = (patientId: string) => {
           .insert({
             patient_id: patientId,
             therapist_id: user.id,
-            name: "Rede de Processos",
+            record_id: recordId || null,
+            is_general: isGeneral,
+            name: isGeneral ? "Rede Geral de Processos" : "Rede da Sessão",
             network_data: data as any,
           } as any);
 
@@ -157,7 +179,7 @@ export const usePatientNetwork = (patientId: string) => {
 
   useEffect(() => {
     fetchNetwork();
-  }, [user?.id, patientId]);
+  }, [user?.id, patientId, recordId, isGeneral]);
 
   return {
     networkData,

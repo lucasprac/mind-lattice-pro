@@ -47,7 +47,7 @@ export interface AssessmentData {
   updated_at?: string;
 }
 
-export const usePatientAssessments = (patientId: string) => {
+export const usePatientAssessments = (patientId: string, recordId?: string) => {
   const [assessments, setAssessments] = useState<AssessmentData[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -60,12 +60,18 @@ export const usePatientAssessments = (patientId: string) => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from("patient_assessments")
         .select("*")
         .eq("patient_id", patientId)
         .eq("therapist_id", user.id)
         .order("assessment_date", { ascending: false });
+
+      if (recordId) {
+        query = query.eq("record_id", recordId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Erro ao buscar avaliações:", error);
@@ -108,6 +114,7 @@ export const usePatientAssessments = (patientId: string) => {
             ...data,
             patient_id: patientId,
             therapist_id: user.id,
+            record_id: recordId || null,
           });
 
         if (error) {
@@ -133,7 +140,7 @@ export const usePatientAssessments = (patientId: string) => {
 
   useEffect(() => {
     fetchAssessments();
-  }, [user?.id, patientId]);
+  }, [user?.id, patientId, recordId]);
 
   return {
     assessments,

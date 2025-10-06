@@ -7,7 +7,7 @@ export interface MediatorData {
   [dimension: string]: { [mediator: string]: string[] };
 }
 
-export const usePatientMediators = (patientId: string) => {
+export const usePatientMediators = (patientId: string, recordId?: string) => {
   const [mediatorProcesses, setMediatorProcesses] = useState<MediatorData>({});
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -20,11 +20,17 @@ export const usePatientMediators = (patientId: string) => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from("patient_mediators")
         .select("*")
         .eq("patient_id", patientId)
         .eq("therapist_id", user.id);
+
+      if (recordId) {
+        query = query.eq("record_id", recordId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Erro ao buscar mediadores:", error);
@@ -56,12 +62,18 @@ export const usePatientMediators = (patientId: string) => {
     }
 
     try {
-      // Delete all existing mediators for this patient
-      await supabase
+      // Delete existing mediators for this patient and session
+      let deleteQuery = supabase
         .from("patient_mediators")
         .delete()
         .eq("patient_id", patientId)
         .eq("therapist_id", user.id);
+
+      if (recordId) {
+        deleteQuery = deleteQuery.eq("record_id", recordId);
+      }
+
+      await deleteQuery;
 
       // Insert new data
       const insertData: any[] = [];
@@ -71,6 +83,7 @@ export const usePatientMediators = (patientId: string) => {
             insertData.push({
               patient_id: patientId,
               therapist_id: user.id,
+              record_id: recordId || null,
               dimension,
               mediator,
               processes,
@@ -113,7 +126,7 @@ export const usePatientMediators = (patientId: string) => {
 
   useEffect(() => {
     fetchMediators();
-  }, [user?.id, patientId]);
+  }, [user?.id, patientId, recordId]);
 
   return {
     mediatorProcesses,

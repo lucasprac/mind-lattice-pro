@@ -15,11 +15,13 @@ import Networks from "./pages/Networks";
 import Interventions from "./pages/Interventions";
 import Records from "./pages/Records";
 import Settings from "./pages/Settings";
-import PatientRoadmap from "./pages/PatientRoadmap";
-import PatientNetwork from "./pages/PatientNetwork";
-import PatientMediators from "./pages/PatientMediators";
-import PatientFunctionalAnalysis from "./pages/PatientFunctionalAnalysis";
+import PatientRoadmapList from "./pages/PatientRoadmapList";
+import PatientSession from "./pages/PatientSession";
+import SessionRoadmap from "./pages/SessionRoadmap";
+import SessionNetwork from "./pages/SessionNetwork";
+import SessionMediators from "./pages/SessionMediators";
 import PatientAssessment from "./pages/PatientAssessment";
+import PatientFunctionalAnalysis from "./pages/PatientFunctionalAnalysis";
 import Mediators from "./pages/Mediators";
 import FunctionalAnalysis from "./pages/FunctionalAnalysis";
 import NotFound from "./pages/NotFound";
@@ -38,11 +40,14 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
             <Route path="/patients" element={<ProtectedRoute><AppLayout><Patients /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId" element={<ProtectedRoute><AppLayout><PatientRoadmap /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/assessment" element={<ProtectedRoute><AppLayout><PatientAssessment /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/network" element={<ProtectedRoute><AppLayout><PatientNetwork /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/mediators" element={<ProtectedRoute><AppLayout><PatientMediators /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/functional" element={<ProtectedRoute><AppLayout><PatientFunctionalAnalysis /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId" element={<ProtectedRoute><AppLayout><PatientRoadmapList /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/session/new" element={<ProtectedRoute><AppLayout><PatientSession /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/session/:recordId" element={<ProtectedRoute><AppLayout><PatientSession /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/session/:recordId/roadmap" element={<ProtectedRoute><AppLayout><SessionRoadmap /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/session/:recordId/assessment" element={<ProtectedRoute><AppLayout><PatientAssessment /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/session/:recordId/network" element={<ProtectedRoute><AppLayout><SessionNetwork /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/session/:recordId/mediators" element={<ProtectedRoute><AppLayout><SessionMediators /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/session/:recordId/functional" element={<ProtectedRoute><AppLayout><PatientFunctionalAnalysis /></AppLayout></ProtectedRoute>} />
             <Route path="/eemm" element={<ProtectedRoute><AppLayout><EEMMMatrix /></AppLayout></ProtectedRoute>} />
             <Route path="/networks" element={<ProtectedRoute><AppLayout><Networks /></AppLayout></ProtectedRoute>} />
             <Route path="/mediators" element={<ProtectedRoute><AppLayout><Mediators /></AppLayout></ProtectedRoute>} />

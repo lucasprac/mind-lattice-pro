@@ -18,7 +18,7 @@ export interface FunctionalAnalysisData {
   socioculturalRetention: string;
 }
 
-export const usePatientFunctionalAnalysis = (patientId: string) => {
+export const usePatientFunctionalAnalysis = (patientId: string, recordId?: string) => {
   const [analyses, setAnalyses] = useState<FunctionalAnalysisData[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -31,12 +31,18 @@ export const usePatientFunctionalAnalysis = (patientId: string) => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from("functional_analysis")
         .select("*")
         .eq("patient_id", patientId)
         .eq("therapist_id", user.id)
         .order("created_at", { ascending: false });
+
+      if (recordId) {
+        query = query.eq("record_id", recordId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Erro ao buscar análises:", error);
@@ -77,6 +83,7 @@ export const usePatientFunctionalAnalysis = (patientId: string) => {
       const dbData = {
         patient_id: patientId,
         therapist_id: user.id,
+        record_id: recordId || null,
         process_name: analysis.processName,
         dimension: analysis.dimension,
         selection_analysis: analysis.selectionAnalysis,
@@ -139,7 +146,7 @@ export const usePatientFunctionalAnalysis = (patientId: string) => {
 
   useEffect(() => {
     fetchAnalyses();
-  }, [user?.id, patientId]);
+  }, [user?.id, patientId, recordId]);
 
   return {
     analyses,
