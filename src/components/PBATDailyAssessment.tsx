@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { usePBATResponses } from '@/hooks/usePBATResponses';
+import { useMLPredictions } from '@/hooks/useMLPredictions';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -47,87 +48,66 @@ const PBAT_QUESTIONS: PBATQuestion[] = [
     description: '1 = Muito baixa, 5 = Excelente'
   },
   {
-    id: 'motivation',
-    question: 'Qual seu nível de motivação?',
-    description: '1 = Nenhuma, 5 = Muito alta'
-  },
-  {
     id: 'social_interaction',
-    question: 'Como foram suas interações sociais?',
-    description: '1 = Muito difíceis, 5 = Muito boas'
+    question: 'Como foi sua interação social hoje?',
+    description: '1 = Nenhuma/Ruim, 5 = Muito boa'
   }
 ];
 
-interface FormValues {
-  [key: string]: number;
-}
-
-export const PBATDailyAssessment: React.FC = () => {
-  const { responses, saveResponse, hasResponseForToday, isLoading } = usePBATResponses();
-  const [formValues, setFormValues] = useState<FormValues>(
+const PBATDailyAssessment: React.FC = () => {
+  const { responses, addResponse, loading, error } = usePBATResponses();
+  const { trainModel, getPredictions, modelMetrics } = useMLPredictions();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
+  const [formValues, setFormValues] = useState<Record<string, number>>(
     PBAT_QUESTIONS.reduce((acc, q) => ({ ...acc, [q.id]: 3 }), {})
   );
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
 
   useEffect(() => {
-    if (!isLoading) {
-      const completedToday = hasResponseForToday();
-      setAlreadyCompleted(completedToday);
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const todayResponse = responses.find(
+      (r) => format(new Date(r.date), 'yyyy-MM-dd') === today
+    );
+
+    if (todayResponse) {
+      setAlreadyCompleted(true);
+      setFormValues(todayResponse.responses);
     }
-  }, [isLoading, hasResponseForToday, responses]);
+  }, [responses]);
 
-  const handleSliderChange = (questionId: string, value: number[]) => {
-    setFormValues(prev => ({
-      ...prev,
-      [questionId]: value[0]
-    }));
-  };
+  // Train model when we have enough responses
+  useEffect(() => {
+    if (responses.length >= 7) {
+      trainModel();
+    }
+  }, [responses, trainModel]);
 
-  const validateForm = (): boolean => {
-    return PBAT_QUESTIONS.every(q => {
-      const value = formValues[q.id];
-      return value >= 1 && value <= 5;
-    });
+  const handleSliderChange = (id: string, value: number[]) => {
+    setFormValues((prev) => ({ ...prev, [id]: value[0] }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      setSubmitError('Por favor, responda todas as perguntas.');
-      return;
-    }
-
-    if (alreadyCompleted) {
-      setSubmitError('Você já completou a avaliação de hoje.');
-      return;
-    }
-
     setIsSubmitting(true);
     setSubmitError(null);
+    setSubmitSuccess(false);
 
     try {
-      saveResponse({
-        response_date: new Date().toISOString().split('T')[0],
-        ...Object.entries(formValues).reduce((acc, [key, value]) => {
-          acc[key as keyof typeof acc] = value;
-          return acc;
-        }, {} as any)
+      await addResponse({
+        date: new Date(),
+        responses: formValues,
       });
-      
       setSubmitSuccess(true);
       setAlreadyCompleted(true);
-      
-      // Reset success message after 3 seconds
+
+      // Retrain model after new response
       setTimeout(() => {
-        setSubmitSuccess(false);
-      }, 3000);
-    } catch (error) {
-      console.error('Error submitting PBAT assessment:', error);
-      setSubmitError('Erro ao salvar a avaliação. Por favor, tente novamente.');
+        trainModel();
+      }, 500);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar avaliação');
     } finally {
       setIsSubmitting(false);
     }
@@ -137,72 +117,64 @@ export const PBATDailyAssessment: React.FC = () => {
     setFormValues(
       PBAT_QUESTIONS.reduce((acc, q) => ({ ...acc, [q.id]: 3 }), {})
     );
-    setSubmitSuccess(false);
-    setSubmitError(null);
   };
 
-  if (isLoading) {
-    return (
-      <Card className="w-full max-w-3xl mx-auto">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const today = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
 
   return (
-    <Card className="w-full max-w-3xl mx-auto">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Avaliação Diária PBAT</CardTitle>
         <CardDescription>
-          {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+          {today}
+          {alreadyCompleted && (
+            <span className="block mt-2 text-green-600 font-medium">
+              ✓ Avaliação de hoje já foi concluída
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {alreadyCompleted && !submitSuccess && (
-          <Alert className="mb-6">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertDescription>
-              Você já completou sua avaliação de hoje. Volte amanhã para uma nova avaliação.
-            </AlertDescription>
+        {loading && (
+          <Alert>
+            <AlertDescription>Carregando dados...</AlertDescription>
+          </Alert>
+        )}
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {submitSuccess && (
-          <Alert className="mb-6 border-green-500 bg-green-50">
+          <Alert className="mb-4 bg-green-50 border-green-200">
             <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-600">
-              Avaliação salva com sucesso!
+            <AlertDescription className="text-green-800">
+              Avaliação salva com sucesso! O modelo de ML será atualizado.
             </AlertDescription>
           </Alert>
         )}
 
         {submitError && (
-          <Alert className="mb-6 border-red-500 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-600">
-              {submitError}
-            </AlertDescription>
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{submitError}</AlertDescription>
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {PBAT_QUESTIONS.map((question) => (
-            <div key={question.id} className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor={question.id} className="text-base font-medium">
-                  {question.question}
-                </Label>
+            <div key={question.id} className="space-y-2">
+              <Label htmlFor={question.id} className="text-base font-medium">
+                {question.question}
                 {question.description && (
-                  <p className="text-sm text-muted-foreground">
+                  <span className="block text-sm text-muted-foreground font-normal mt-1">
                     {question.description}
-                  </p>
+                  </span>
                 )}
-              </div>
-              
+              </Label>
               <div className="flex items-center gap-4">
                 <span className="text-sm text-muted-foreground min-w-[20px]">1</span>
                 <Slider
@@ -222,7 +194,6 @@ export const PBATDailyAssessment: React.FC = () => {
               </div>
             </div>
           ))}
-
           <div className="flex gap-3 pt-4">
             <Button
               type="submit"
