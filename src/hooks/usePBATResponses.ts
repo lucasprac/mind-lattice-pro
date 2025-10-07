@@ -58,7 +58,6 @@ export const usePBATResponses = (patientId?: string) => {
       if (!userId) {
         throw new Error('User ID is required');
       }
-
       const { data, error } = await supabase
         .from('patient_assessments')
         .select('*')
@@ -186,8 +185,8 @@ export const usePBATResponses = (patientId?: string) => {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: [PBAT_QUERY_KEY, userId] });
-      
-      if (variables.id) {
+
+      if ((variables as Partial<PBATResponse>).id) {
         toast.success('Resposta PBAT atualizada com sucesso');
       } else {
         toast.success('Resposta PBAT salva com sucesso');
@@ -268,12 +267,12 @@ export const usePBATResponses = (patientId?: string) => {
       const halfPoint = Math.floor(responses.length / 2);
       const recentScores = scores.slice(0, halfPoint);
       const olderScores = scores.slice(halfPoint);
-      
+
       const recentAvg = recentScores.reduce((sum, s) => sum + s, 0) / recentScores.length;
       const olderAvg = olderScores.reduce((sum, s) => sum + s, 0) / olderScores.length;
-      
+
       const difference = recentAvg - olderAvg;
-      
+
       // Lower scores are better (less symptoms)
       if (difference < -2) {
         trend = 'improving';
@@ -283,20 +282,20 @@ export const usePBATResponses = (patientId?: string) => {
     }
 
     // Calculate category averages
-    const cognitiveQuestions = responses.map(r => 
-      ((r.difficulty_concentrating || 0) + 
-       (r.difficulty_remembering || 0) + 
-       (r.difficulty_thinking_clearly || 0) + 
-       (r.difficulty_finding_words || 0)) / 4
+    const cognitiveQuestions = responses.map(r =>
+      ((r.difficulty_concentrating || 0) +
+        (r.difficulty_remembering || 0) +
+        (r.difficulty_thinking_clearly || 0) +
+        (r.difficulty_finding_words || 0)) / 4
     );
-    
-    const fatigueQuestions = responses.map(r => 
+
+    const fatigueQuestions = responses.map(r =>
       ((r.mental_fatigue || 0) + (r.physical_fatigue || 0)) / 2
     );
-    
+
     const sleepQuestions = responses.map(r => r.sleep_quality || 0);
-    
-    const emotionalQuestions = responses.map(r => 
+
+    const emotionalQuestions = responses.map(r =>
       ((r.mood_state || 0) + (r.anxiety_level || 0) + (r.stress_level || 0)) / 3
     );
 
@@ -369,17 +368,19 @@ export const usePBATResponses = (patientId?: string) => {
     // Data
     responses,
     isLoading,
+    loading: isLoading, // backward-compatible alias
     error,
-    
+
     // Mutations
     saveResponse: saveMutation.mutate,
+    addResponse: saveMutation.mutate, // backward-compatible alias
     saveResponseAsync: saveMutation.mutateAsync,
     isSaving: saveMutation.isPending,
-    
+
     deleteResponse: deleteMutation.mutate,
     deleteResponseAsync: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
-    
+
     // Utilities
     refetch,
     calculateScore,
