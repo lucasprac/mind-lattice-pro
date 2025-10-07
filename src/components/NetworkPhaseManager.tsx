@@ -296,7 +296,18 @@ export const NetworkPhaseManager: React.FC<NetworkPhaseManagerProps> = ({
               </div>
               
               <OptimizedNetworkCanvas
-                networkData={currentNetwork}
+                networkData={{
+                  nodes: currentNetwork.nodes.map(node => ({
+                    ...node,
+                    x: node.x ?? 100,
+                    y: node.y ?? 100,
+                    width: node.width ?? 150,
+                    height: node.height ?? 60,
+                    dimension: node.dimension as any,
+                    level: node.level as any
+                  })),
+                  connections: currentNetwork.connections
+                }}
                 onSave={handleSaveNetwork}
                 readOnly={isLoading}
               />

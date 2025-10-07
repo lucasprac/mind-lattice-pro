@@ -74,8 +74,8 @@ export const useNetworkSync = ({ patientId, sessionId }: UseNetworkSyncProps) =>
         .from('networks')
         .select('network_data')
         .eq('patient_id', patientId)
-        .eq('session_id', sessionId)
-        .eq('network_type', 'session')
+        .eq('record_id', sessionId)
+        .eq('is_general', false)
         .single();
       
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -83,9 +83,10 @@ export const useNetworkSync = ({ patientId, sessionId }: UseNetworkSyncProps) =>
       }
       
       if (data?.network_data) {
+        const networkData = data.network_data as any;
         setSessionNetwork({
-          nodes: data.network_data.nodes || [],
-          connections: data.network_data.connections || []
+          nodes: networkData.nodes || [],
+          connections: networkData.connections || []
         });
       } else {
         setSessionNetwork({ nodes: [], connections: [] });
@@ -109,7 +110,7 @@ export const useNetworkSync = ({ patientId, sessionId }: UseNetworkSyncProps) =>
         .from('networks')
         .select('network_data')
         .eq('patient_id', patientId)
-        .eq('network_type', 'general')
+        .eq('is_general', true)
         .single();
       
       if (error && error.code !== 'PGRST116') {
@@ -117,9 +118,10 @@ export const useNetworkSync = ({ patientId, sessionId }: UseNetworkSyncProps) =>
       }
       
       if (data?.network_data) {
+        const networkData = data.network_data as any;
         setGeneralNetwork({
-          nodes: data.network_data.nodes || [],
-          connections: data.network_data.connections || []
+          nodes: networkData.nodes || [],
+          connections: networkData.connections || []
         });
       } else {
         setGeneralNetwork({ nodes: [], connections: [] });
@@ -141,16 +143,19 @@ export const useNetworkSync = ({ patientId, sessionId }: UseNetworkSyncProps) =>
     }
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { error } = await supabase
         .from('networks')
         .upsert({
           patient_id: patientId,
-          session_id: sessionId,
-          network_type: 'session',
-          network_data: networkData,
+          therapist_id: user.id,
+          record_id: sessionId,
+          is_general: false,
+          name: `Sessão ${sessionId}`,
+          network_data: networkData as any,
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'patient_id,session_id,network_type'
         });
       
       if (error) throw error;
@@ -168,15 +173,18 @@ export const useNetworkSync = ({ patientId, sessionId }: UseNetworkSyncProps) =>
   // Save general network
   const saveGeneralNetwork = useCallback(async (networkData: NetworkData) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { error } = await supabase
         .from('networks')
         .upsert({
           patient_id: patientId,
-          network_type: 'general',
-          network_data: networkData,
+          therapist_id: user.id,
+          is_general: true,
+          name: 'Rede Geral',
+          network_data: networkData as any,
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'patient_id,network_type'
         });
       
       if (error) throw error;

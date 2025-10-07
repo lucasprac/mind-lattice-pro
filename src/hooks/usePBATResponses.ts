@@ -60,17 +60,34 @@ export const usePBATResponses = (patientId?: string) => {
       }
 
       const { data, error } = await supabase
-        .from('pbat_responses')
+        .from('patient_assessments')
         .select('*')
-        .eq('user_id', userId)
-        .order('response_date', { ascending: false });
+        .eq('therapist_id', userId)
+        .order('assessment_date', { ascending: false });
 
       if (error) {
         console.error('Error fetching PBAT responses:', error);
         throw error;
       }
 
-      return (data || []) as PBATResponse[];
+      // Transform patient_assessments to PBATResponse format
+      return ((data || []) as any[]).map(item => ({
+        id: item.id,
+        user_id: item.therapist_id,
+        response_date: item.assessment_date,
+        difficulty_concentrating: item.q1,
+        difficulty_remembering: item.q2,
+        difficulty_thinking_clearly: item.q3,
+        difficulty_finding_words: item.q4,
+        mental_fatigue: item.q5,
+        physical_fatigue: item.q6,
+        sleep_quality: item.q7,
+        mood_state: item.q8,
+        anxiety_level: item.q9,
+        stress_level: item.q10,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      } as PBATResponse));
     },
     enabled: !!userId,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -84,18 +101,29 @@ export const usePBATResponses = (patientId?: string) => {
         throw new Error('User ID is required');
       }
 
-      const responseData = {
-        ...data,
-        user_id: userId,
+      // Transform PBATResponse format to patient_assessments format
+      const assessmentData = {
+        therapist_id: userId,
+        assessment_date: data.response_date || new Date().toISOString().split('T')[0],
+        q1: data.difficulty_concentrating,
+        q2: data.difficulty_remembering,
+        q3: data.difficulty_thinking_clearly,
+        q4: data.difficulty_finding_words,
+        q5: data.mental_fatigue,
+        q6: data.physical_fatigue,
+        q7: data.sleep_quality,
+        q8: data.mood_state,
+        q9: data.anxiety_level,
+        q10: data.stress_level,
       };
 
       if (data.id) {
         // Update existing response
         const { data: updated, error } = await supabase
-          .from('pbat_responses')
-          .update(responseData)
+          .from('patient_assessments')
+          .update(assessmentData)
           .eq('id', data.id)
-          .eq('user_id', userId)
+          .eq('therapist_id', userId)
           .select()
           .single();
 
@@ -104,12 +132,31 @@ export const usePBATResponses = (patientId?: string) => {
           throw error;
         }
 
-        return updated as PBATResponse;
+        return {
+          id: updated.id,
+          user_id: updated.therapist_id,
+          response_date: updated.assessment_date,
+          difficulty_concentrating: updated.q1,
+          difficulty_remembering: updated.q2,
+          difficulty_thinking_clearly: updated.q3,
+          difficulty_finding_words: updated.q4,
+          mental_fatigue: updated.q5,
+          physical_fatigue: updated.q6,
+          sleep_quality: updated.q7,
+          mood_state: updated.q8,
+          anxiety_level: updated.q9,
+          stress_level: updated.q10,
+          created_at: updated.created_at,
+          updated_at: updated.updated_at,
+        } as PBATResponse;
       } else {
         // Create new response
         const { data: created, error } = await supabase
-          .from('pbat_responses')
-          .insert(responseData)
+          .from('patient_assessments')
+          .insert({
+            ...assessmentData,
+            patient_id: userId, // Using therapist as patient for now
+          })
           .select()
           .single();
 
@@ -118,7 +165,23 @@ export const usePBATResponses = (patientId?: string) => {
           throw error;
         }
 
-        return created as PBATResponse;
+        return {
+          id: created.id,
+          user_id: created.therapist_id,
+          response_date: created.assessment_date,
+          difficulty_concentrating: created.q1,
+          difficulty_remembering: created.q2,
+          difficulty_thinking_clearly: created.q3,
+          difficulty_finding_words: created.q4,
+          mental_fatigue: created.q5,
+          physical_fatigue: created.q6,
+          sleep_quality: created.q7,
+          mood_state: created.q8,
+          anxiety_level: created.q9,
+          stress_level: created.q10,
+          created_at: created.created_at,
+          updated_at: created.updated_at,
+        } as PBATResponse;
       }
     },
     onSuccess: (data, variables) => {
@@ -144,10 +207,10 @@ export const usePBATResponses = (patientId?: string) => {
       }
 
       const { error } = await supabase
-        .from('pbat_responses')
+        .from('patient_assessments')
         .delete()
         .eq('id', responseId)
-        .eq('user_id', userId);
+        .eq('therapist_id', userId);
 
       if (error) {
         console.error('Error deleting PBAT response:', error);
