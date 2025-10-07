@@ -63,7 +63,7 @@ interface FormValues {
 }
 
 export const PBATDailyAssessment: React.FC = () => {
-  const { responses, addResponse, hasResponseForToday, loading } = usePBATResponses();
+  const { responses, saveResponse, hasResponseForToday, isLoading } = usePBATResponses();
   const [formValues, setFormValues] = useState<FormValues>(
     PBAT_QUESTIONS.reduce((acc, q) => ({ ...acc, [q.id]: 3 }), {})
   );
@@ -73,11 +73,11 @@ export const PBATDailyAssessment: React.FC = () => {
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
+    if (!isLoading) {
       const completedToday = hasResponseForToday();
       setAlreadyCompleted(completedToday);
     }
-  }, [loading, hasResponseForToday, responses]);
+  }, [isLoading, hasResponseForToday, responses]);
 
   const handleSliderChange = (questionId: string, value: number[]) => {
     setFormValues(prev => ({
@@ -110,10 +110,12 @@ export const PBATDailyAssessment: React.FC = () => {
     setSubmitError(null);
 
     try {
-      await addResponse({
-        date: new Date().toISOString(),
-        responses: formValues,
-        timestamp: Date.now()
+      saveResponse({
+        response_date: new Date().toISOString().split('T')[0],
+        ...Object.entries(formValues).reduce((acc, [key, value]) => {
+          acc[key as keyof typeof acc] = value;
+          return acc;
+        }, {} as any)
       });
       
       setSubmitSuccess(true);
@@ -139,7 +141,7 @@ export const PBATDailyAssessment: React.FC = () => {
     setSubmitError(null);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Card className="w-full max-w-3xl mx-auto">
         <CardContent className="pt-6">

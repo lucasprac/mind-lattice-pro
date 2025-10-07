@@ -24,6 +24,7 @@ import PatientAssessment from "./pages/PatientAssessment";
 import PatientFunctionalAnalysis from "./pages/PatientFunctionalAnalysis";
 import Mediators from "./pages/Mediators";
 import FunctionalAnalysis from "./pages/FunctionalAnalysis";
+import MachineLearning from "./pages/MachineLearning";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/functional-analysis" element={<ProtectedRoute><AppLayout><FunctionalAnalysis /></AppLayout></ProtectedRoute>} />
             <Route path="/interventions" element={<ProtectedRoute><AppLayout><Interventions /></AppLayout></ProtectedRoute>} />
             <Route path="/records" element={<ProtectedRoute><AppLayout><Records /></AppLayout></ProtectedRoute>} />
+            <Route path="/machine-learning" element={<ProtectedRoute><AppLayout><MachineLearning /></AppLayout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
