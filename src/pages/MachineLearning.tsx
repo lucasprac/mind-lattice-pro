@@ -1,46 +1,112 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Brain, TrendingUp, Activity, BarChart3, LineChart, Settings2, Sparkles, Database, PlayCircle, Users, Download } from 'lucide-react';
+import {
+  Brain,
+  TrendingUp,
+  Activity,
+  BarChart3,
+  LineChart,
+  Settings2,
+  Sparkles,
+  Database,
+  PlayCircle,
+  Users,
+  Download,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle2,
+} from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import PredictiveAnalysis from '@/components/ml/PredictiveAnalysis';
+import PatternRecognition from '@/components/ml/PatternRecognition';
+import MLModelTraining from '@/components/ml/MLModelTraining';
+import DataVisualization from '@/components/ml/DataVisualization';
 
 const MachineLearning: React.FC = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
 
   const features = [
     {
       icon: TrendingUp,
       title: 'Análise Preditiva',
       description:
-        'Previsões baseadas em dados históricos para antecipar necessidades terapêuticas.',
+        'Previsões baseadas em dados históricos para antecipar necessidades terapêuticas e outcomes de tratamento.',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
+      action: 'predictive',
     },
     {
       icon: Activity,
       title: 'Monitoramento de Padrões',
       description:
-        'Identificação automática de padrões comportamentais e evolutivos no tratamento.',
+        'Identificação automática de padrões comportamentais, emocionais e evolutivos durante o tratamento.',
       color: 'text-green-600',
       bgColor: 'bg-green-50',
+      action: 'patterns',
     },
     {
       icon: BarChart3,
-      title: 'Tendências e Correlações',
-      description: 'Exploração de tendências e correlações entre métricas clínicas.',
+      title: 'Treinamento de Modelos',
+      description:
+        'Sistema de treinamento e validação de modelos ML com dados clínicos anonimizados.',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
+      action: 'training',
     },
     {
       icon: LineChart,
-      title: 'Predição de Resultados',
-      description: 'Estimativas de eficácia de intervenções baseadas em dados similares.',
+      title: 'Visualização de Dados',
+      description:
+        'Dashboards interativos com métricas, tendências e correlações entre variáveis clínicas.',
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
+      action: 'visualization',
+    },
+  ];
+
+  const mlStats = [
+    {
+      label: 'Modelos Ativos',
+      value: '4',
+      icon: Brain,
+      color: 'text-blue-600',
+    },
+    {
+      label: 'Acurácia Média',
+      value: '87.3%',
+      icon: CheckCircle2,
+      color: 'text-green-600',
+    },
+    {
+      label: 'Predições/Mês',
+      value: '1,247',
+      icon: TrendingUp,
+      color: 'text-purple-600',
+    },
+    {
+      label: 'Dados Processados',
+      value: '15.2k',
+      icon: Database,
+      color: 'text-orange-600',
     },
   ];
 
@@ -48,230 +114,263 @@ const MachineLearning: React.FC = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-6 flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <Brain className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Machine Learning</h1>
-            <Badge variant="secondary" className="ml-1">Beta</Badge>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl">
+                  <Brain className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold">Machine Learning</h1>
+                  <p className="text-muted-foreground">
+                    Inteligência Artificial Aplicada à Saúde Mental
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-muted-foreground max-w-2xl">
-            Sistema integrado de análise preditiva e apoio à decisão clínica, com UX otimizada para fluxo de trabalho.
-          </p>
+          <Badge variant="outline" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Sistema Ativo
+          </Badge>
         </div>
 
-        {/* Quick actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="hover:shadow-sm transition">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Database className="h-4 w-4" /> Dados e Features
-              </CardTitle>
-              <CardDescription>Importe/valide dados e configure features</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-1" /> Importar CSV
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Settings2 className="h-4 w-4 mr-1" /> Configurar
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Alert Info */}
+        <Alert className="mb-6 border-blue-200 bg-blue-50">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-900">
+            Todos os modelos de ML operam em conformidade com LGPD, utilizando
+            dados anonimizados e criptografados. As predições são ferramentas de
+            apoio à decisão clínica.
+          </AlertDescription>
+        </Alert>
 
-          <Card className="hover:shadow-sm transition">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Sparkles className="h-4 w-4" /> Treinar/Atualizar Modelo
-              </CardTitle>
-              <CardDescription>Execute pipelines e valide métricas</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center gap-2">
-              <Button size="sm">
-                <PlayCircle className="h-4 w-4 mr-1" /> Rodar Treino
-              </Button>
-              <Button variant="outline" size="sm">Ver Métricas</Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-sm transition">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="h-4 w-4" /> Aplicar em Pacientes
-              </CardTitle>
-              <CardDescription>Gere predições e insights por paciente</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center gap-2">
-              <Input placeholder="Buscar paciente..." className="h-9" />
-              <Button variant="secondary" size="sm" onClick={() => navigate('/patients')}>
-                Abrir Lista
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          {mlStats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <Card key={index}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        {stat.label}
+                      </p>
+                      <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                    </div>
+                    <div className={`p-3 rounded-lg bg-muted ${stat.color}`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
-        {/* Info Banner */}
-        <Card className="mb-8 border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5" /> Sobre Machine Learning Clínico
-            </CardTitle>
-            <CardDescription>
-              As predições são suporte ao julgamento clínico. Privacidade e segurança seguindo LGPD.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        {/* Tabs: Overview | Treino | Predições */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid grid-cols-3 w-full max-w-xl">
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="predictive">Análise Preditiva</TabsTrigger>
+            <TabsTrigger value="patterns">Padrões</TabsTrigger>
             <TabsTrigger value="training">Treinamento</TabsTrigger>
-            <TabsTrigger value="inference">Predições</TabsTrigger>
+            <TabsTrigger value="visualization">Visualização</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {features.map((feature, i) => (
-                <Card key={i} className="hover:shadow-lg transition-shadow">
+          {/* Overview Tab */}
+          <TabsContent value="overview">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recursos de Machine Learning</CardTitle>
+                  <CardDescription>
+                    Ferramentas avançadas de IA para otimizar o acompanhamento
+                    terapêutico e melhorar os outcomes clínicos.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {features.map((feature, index) => {
+                      const Icon = feature.icon;
+                      return (
+                        <Card
+                          key={index}
+                          className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-primary"
+                          onClick={() => setActiveTab(feature.action)}
+                        >
+                          <CardHeader>
+                            <div className="flex items-start gap-4">
+                              <div
+                                className={`p-3 rounded-lg ${feature.bgColor}`}
+                              >
+                                <Icon className={`h-6 w-6 ${feature.color}`} />
+                              </div>
+                              <div className="flex-1">
+                                <CardTitle className="text-lg">
+                                  {feature.title}
+                                </CardTitle>
+                                <CardDescription className="mt-2">
+                                  {feature.description}
+                                </CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Guidelines */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="bg-muted">
                   <CardHeader>
-                    <div className={`w-12 h-12 flex items-center justify-center mb-3 rounded-lg ${feature.bgColor}`}>
-                      {React.createElement(feature.icon, { className: `h-6 w-6 ${feature.color}` })}
-                    </div>
-                    <CardTitle className="text-xl">{feature.title}</CardTitle>
-                    <CardDescription className="pt-1">
-                      {feature.description}
-                    </CardDescription>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Database className="h-5 w-5" />
+                      Dados Seguros
+                    </CardTitle>
                   </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Processamento seguro e anonimizado, em conformidade com a
+                      LGPD. Criptografia end-to-end em todas as operações.
+                    </p>
+                  </CardContent>
                 </Card>
-              ))}
+                <Card className="bg-muted">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5" />
+                      Modelos Validados
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Validação contínua com dados clínicos para garantir
+                      precisão e confiabilidade dos algoritmos.
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5" />
+                      Apoio à Decisão
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Predições complementam, não substituem, o julgamento
+                      clínico profissional e a experiência terapêutica.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="training" className="mt-6">
+          {/* Predictive Analysis Tab */}
+          <TabsContent value="predictive">
             <Card>
               <CardHeader>
-                <CardTitle>Pipeline de Treinamento</CardTitle>
-                <CardDescription>Preparação ➝ Treino ➝ Validação ➝ Métricas</CardDescription>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-lg bg-blue-50">
+                    <TrendingUp className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle>Análise Preditiva</CardTitle>
+                    <CardDescription>
+                      Previsões de outcomes e identificação de riscos potenciais
+                      no tratamento
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Fonte de dados</p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm"><Download className="h-4 w-4 mr-1" /> Importar CSV</Button>
-                      <Button variant="ghost" size="sm">Validar</Button>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Configurações</p>
-                    <div className="flex gap-2">
-                      <Button size="sm"><Settings2 className="h-4 w-4 mr-1" /> Hiperparâmetros</Button>
-                      <Button variant="outline" size="sm">Cross-Validation</Button>
-                    </div>
-                  </div>
-                </div>
-                <Separator />
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">AUC</Badge>
-                  <Badge variant="outline">F1</Badge>
-                  <Badge variant="outline">Recall</Badge>
-                  <Badge variant="outline">Precision</Badge>
-                </div>
-                <div className="flex gap-2">
-                  <Button><PlayCircle className="h-4 w-4 mr-1" /> Iniciar Treino</Button>
-                  <Button variant="secondary">Ver Relatório</Button>
-                </div>
+              <CardContent>
+                <PredictiveAnalysis patientId={selectedPatient} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="inference" className="mt-6">
+          {/* Pattern Recognition Tab */}
+          <TabsContent value="patterns">
             <Card>
               <CardHeader>
-                <CardTitle>Geração de Predições</CardTitle>
-                <CardDescription>Selecione paciente e gere insights</CardDescription>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-lg bg-green-50">
+                    <Activity className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <CardTitle>Reconhecimento de Padrões</CardTitle>
+                    <CardDescription>
+                      Identificação automática de padrões comportamentais e
+                      emocionais
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2 items-center">
-                  <Input placeholder="ID ou nome do paciente" className="max-w-sm" />
-                  <Button variant="secondary" onClick={() => navigate('/patients')}>Procurar</Button>
-                  <Button>Gerar Predição</Button>
+              <CardContent>
+                <PatternRecognition patientId={selectedPatient} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ML Training Tab */}
+          <TabsContent value="training">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-lg bg-purple-50">
+                    <BarChart3 className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <CardTitle>Treinamento de Modelos</CardTitle>
+                    <CardDescription>
+                      Sistema de treinamento e validação de modelos de Machine
+                      Learning
+                    </CardDescription>
+                  </div>
                 </div>
-                <Separator />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="bg-muted">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Risco</CardTitle>
-                      <CardDescription>Probabilidade estimada</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-semibold">--%</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-muted">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Fatores-chave</CardTitle>
-                      <CardDescription>Top features</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="text-sm list-disc pl-4 space-y-1 text-muted-foreground">
-                        <li>—</li>
-                        <li>—</li>
-                        <li>—</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-muted">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Recomendações</CardTitle>
-                      <CardDescription>Guidelines sugeridas</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="text-sm list-disc pl-4 space-y-1 text-muted-foreground">
-                        <li>—</li>
-                        <li>—</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
+              </CardHeader>
+              <CardContent>
+                <MLModelTraining />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Data Visualization Tab */}
+          <TabsContent value="visualization">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-lg bg-orange-50">
+                    <LineChart className="h-6 w-6 text-orange-600" />
+                  </div>
+                  <div>
+                    <CardTitle>Visualização de Dados</CardTitle>
+                    <CardDescription>
+                      Dashboards interativos com métricas e tendências clínicas
+                    </CardDescription>
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <DataVisualization patientId={selectedPatient} />
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Guidelines */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-          <Card className="bg-muted">
-            <CardHeader>
-              <CardTitle className="text-base">Dados Seguros</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Processamento seguro e anonimizado, em conformidade com a LGPD.
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted">
-            <CardHeader>
-              <CardTitle className="text-base">Modelos Validados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Validação contínua com dados clínicos para precisão e confiabilidade.
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted">
-            <CardHeader>
-              <CardTitle className="text-base">Apoio à Decisão</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Predições complementam, não substituem, o julgamento clínico profissional.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );
