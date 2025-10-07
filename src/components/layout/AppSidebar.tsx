@@ -27,7 +27,6 @@ const menuItems = [
   { title: "Pacientes", url: "/patients", icon: Users },
   { title: "Matriz EEMM", url: "/eemm", icon: Grid3x3 },
   { title: "Redes de Processos", url: "/networks", icon: Network },
-  { title: "Predição Clínica", url: "/ml-predictions", icon: Brain },
   { title: "Mediadores", url: "/mediators", icon: Grid3x3 },
   { title: "Análise Funcional", url: "/functional-analysis", icon: FileText },
   { title: "Intervenções", url: "/interventions", icon: Brain },
