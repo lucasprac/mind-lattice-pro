@@ -47,130 +47,45 @@ export interface MLPrediction {
   user_id: string;
   model_id: string;
   prediction_date: string;
-  prediction_value: number;
-  prediction_label?: string;
-  confidence_score?: number;
-  input_features: Record<string, any>;
-  risk_factors?: string[];
-  recommendations?: string[];
+  predicted_value: number;
+  prediction_confidence?: number;
+  prediction_details?: Record<string, any>;
   created_at: string;
-  updated_at: string;
-  model?: MLModel;
-}
-
-export interface LatestUserPrediction {
-  id: string;
-  user_id: string;
-  model_id: string;
-  model_name: string;
-  target_variable: string;
-  prediction_date: string;
-  prediction_value: number;
-  prediction_label?: string;
-  confidence_score?: number;
-  risk_factors?: string[];
-  recommendations?: string[];
 }
 
 export interface PBATFormData {
-  difficulty_concentrating: number;
-  difficulty_remembering: number;
-  difficulty_thinking_clearly: number;
-  difficulty_finding_words: number;
-  mental_fatigue: number;
-  physical_fatigue: number;
-  sleep_quality: number;
-  mood_state: number;
-  anxiety_level: number;
-  stress_level: number;
+  difficulty_concentrating?: number;
+  difficulty_remembering?: number;
+  difficulty_thinking_clearly?: number;
+  difficulty_finding_words?: number;
+  mental_fatigue?: number;
+  physical_fatigue?: number;
+  sleep_quality?: number;
+  mood_state?: number;
+  anxiety_level?: number;
+  stress_level?: number;
 }
 
-interface UseMLPredictionsReturn {
-  // PBAT responses
-  pbatResponses: PBATResponse[];
-  todaysPBATResponse: PBATResponse | null;
-  loadingPBAT: boolean;
-  
-  // ML predictions
-  predictions: MLPrediction[];
-  latestPredictions: LatestUserPrediction[];
-  loadingPredictions: boolean;
-  
-  // ML models
-  activeModels: MLModel[];
-  loadingModels: boolean;
-  
-  // Actions
-  submitPBATResponse: (formData: PBATFormData) => Promise<boolean>;
-  updatePBATResponse: (id: string, formData: Partial<PBATFormData>) => Promise<boolean>;
-  deletePBATResponse: (id: string) => Promise<boolean>;
-  refreshPredictions: () => Promise<void>;
-  refreshPBATResponses: () => Promise<void>;
-  refreshModels: () => Promise<void>;
-  
-  // Calculations
-  calculatePBATScore: (response: PBATResponse) => number;
-  getPBATTrend: (days?: number) => Array<{ date: string; score: number }>;
-  
-  // Error state
-  error: string | null;
-}
-
-export const useMLPredictions = (): UseMLPredictionsReturn => {
+export const useMLPredictions = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // State
+  // State for PBAT responses
   const [pbatResponses, setPbatResponses] = useState<PBATResponse[]>([]);
-  const [predictions, setPredictions] = useState<MLPrediction[]>([]);
-  const [latestPredictions, setLatestPredictions] = useState<LatestUserPrediction[]>([]);
-  const [activeModels, setActiveModels] = useState<MLModel[]>([]);
-  
   const [loadingPBAT, setLoadingPBAT] = useState(false);
+  
+  // State for ML predictions
+  const [predictions, setPredictions] = useState<MLPrediction[]>([]);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
+  
+  // State for ML models
+  const [activeModels, setActiveModels] = useState<MLModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
+  
+  // Error state
   const [error, setError] = useState<string | null>(null);
-  
-  // Computed values
-  const todaysPBATResponse = pbatResponses.find(
-    response => response.response_date === new Date().toISOString().split('T')[0]
-  ) || null;
-  
-  // Helper function to calculate PBAT score
-  const calculatePBATScore = useCallback((response: PBATResponse): number => {
-    const fields = [
-      'difficulty_concentrating',
-      'difficulty_remembering', 
-      'difficulty_thinking_clearly',
-      'difficulty_finding_words',
-      'mental_fatigue',
-      'physical_fatigue',
-      'sleep_quality',
-      'mood_state',
-      'anxiety_level',
-      'stress_level'
-    ] as const;
-    
-    return fields.reduce((sum, field) => {
-      return sum + (response[field] || 0);
-    }, 0);
-  }, []);
-  
-  // Get PBAT trend over time
-  const getPBATTrend = useCallback((days: number = 30) => {
-    const now = new Date();
-    const startDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
-    
-    return pbatResponses
-      .filter(response => new Date(response.response_date) >= startDate)
-      .map(response => ({
-        date: response.response_date,
-        score: calculatePBATScore(response)
-      }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [pbatResponses, calculatePBATScore]);
-  
-  // Fetch PBAT responses
+
+  // Fetch PBAT responses from Supabase
   const refreshPBATResponses = useCallback(async () => {
     if (!user?.id) return;
     
@@ -178,15 +93,14 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
     setError(null);
     
     try {
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('pbat_responses')
         .select('*')
         .eq('user_id', user.id)
         .order('response_date', { ascending: false });
       
-      if (error) throw error;
-      
-      setPbatResponses(data || []);
+      if (fetchError) throw fetchError;
+      setPbatResponses((data || []) as PBATResponse[]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch PBAT responses';
       setError(message);
@@ -199,8 +113,8 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
       setLoadingPBAT(false);
     }
   }, [user?.id, toast]);
-  
-  // Fetch ML predictions
+
+  // Fetch ML predictions from Supabase
   const refreshPredictions = useCallback(async () => {
     if (!user?.id) return;
     
@@ -208,29 +122,14 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
     setError(null);
     
     try {
-      // Fetch all predictions with model data
-      const { data: predictionsData, error: predictionsError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('ml_predictions')
-        .select(`
-          *,
-          model:ml_models(*)
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('prediction_date', { ascending: false });
       
-      if (predictionsError) throw predictionsError;
-      
-      setPredictions(predictionsData || []);
-      
-      // Fetch latest predictions view
-      const { data: latestData, error: latestError } = await supabase
-        .from('latest_user_predictions')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (latestError) throw latestError;
-      
-      setLatestPredictions(latestData || []);
+      if (fetchError) throw fetchError;
+      setPredictions((data || []) as MLPrediction[]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch predictions';
       setError(message);
@@ -243,27 +142,26 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
       setLoadingPredictions(false);
     }
   }, [user?.id, toast]);
-  
+
   // Fetch active ML models
   const refreshModels = useCallback(async () => {
     setLoadingModels(true);
     setError(null);
     
     try {
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('ml_models')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      
-      setActiveModels(data || []);
+      if (fetchError) throw fetchError;
+      setActiveModels((data || []) as MLModel[]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch models';
       setError(message);
       toast({
-        title: 'Error', 
+        title: 'Error',
         description: message,
         variant: 'destructive'
       });
@@ -271,30 +169,71 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
       setLoadingModels(false);
     }
   }, [toast]);
-  
-  // Submit PBAT response
+
+  // Get today's PBAT response
+  const todaysPBATResponse = pbatResponses.find(
+    response => response.response_date === new Date().toISOString().split('T')[0]
+  );
+
+  // Get latest predictions (last 7 days)
+  const latestPredictions = predictions.slice(0, 7);
+
+  // Calculate average PBAT score
+  const calculatePBATScore = useCallback((response: PBATResponse): number => {
+    const fields = [
+      response.difficulty_concentrating,
+      response.difficulty_remembering,
+      response.difficulty_thinking_clearly,
+      response.difficulty_finding_words,
+      response.mental_fatigue,
+      response.physical_fatigue,
+      response.sleep_quality,
+      response.mood_state,
+      response.anxiety_level,
+      response.stress_level
+    ];
+    
+    const validFields = fields.filter(f => f !== undefined && f !== null) as number[];
+    if (validFields.length === 0) return 0;
+    
+    const sum = validFields.reduce((acc, val) => acc + val, 0);
+    return sum / validFields.length;
+  }, []);
+
+  // Get PBAT trend (comparing last two responses)
+  const getPBATTrend = useCallback((): 'improving' | 'declining' | 'stable' | null => {
+    if (pbatResponses.length < 2) return null;
+    
+    const latest = calculatePBATScore(pbatResponses[0]);
+    const previous = calculatePBATScore(pbatResponses[1]);
+    
+    const difference = latest - previous;
+    
+    if (Math.abs(difference) < 0.5) return 'stable';
+    return difference < 0 ? 'improving' : 'declining';
+  }, [pbatResponses, calculatePBATScore]);
+
+  // Submit a new PBAT response
   const submitPBATResponse = useCallback(async (formData: PBATFormData): Promise<boolean> => {
     if (!user?.id) {
       toast({
         title: 'Error',
-        description: 'You must be logged in to submit a PBAT response',
+        description: 'You must be logged in to submit a response',
         variant: 'destructive'
       });
       return false;
     }
-    
+
     try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('pbat_responses')
-        .insert({
+        .insert([{
           user_id: user.id,
-          response_date: today,
+          response_date: new Date().toISOString().split('T')[0],
           ...formData
-        });
+        }]);
       
-      if (error) throw error;
+      if (insertError) throw insertError;
       
       toast({
         title: 'Success',
@@ -302,6 +241,8 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
       });
       
       await refreshPBATResponses();
+      await refreshPredictions();
+      
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit PBAT response';
@@ -312,17 +253,30 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
       });
       return false;
     }
-  }, [user?.id, toast, refreshPBATResponses]);
-  
-  // Update PBAT response
-  const updatePBATResponse = useCallback(async (id: string, formData: Partial<PBATFormData>): Promise<boolean> => {
+  }, [user?.id, toast, refreshPBATResponses, refreshPredictions]);
+
+  // Update an existing PBAT response
+  const updatePBATResponse = useCallback(async (
+    responseId: string, 
+    formData: Partial<PBATFormData>
+  ): Promise<boolean> => {
+    if (!user?.id) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to update a response',
+        variant: 'destructive'
+      });
+      return false;
+    }
+
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('pbat_responses')
         .update(formData)
-        .eq('id', id);
+        .eq('id', responseId)
+        .eq('user_id', user.id);
       
-      if (error) throw error;
+      if (updateError) throw updateError;
       
       toast({
         title: 'Success',
@@ -340,17 +294,27 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
       });
       return false;
     }
-  }, [toast, refreshPBATResponses]);
-  
-  // Delete PBAT response
-  const deletePBATResponse = useCallback(async (id: string): Promise<boolean> => {
+  }, [user?.id, toast, refreshPBATResponses]);
+
+  // Delete a PBAT response
+  const deletePBATResponse = useCallback(async (responseId: string): Promise<boolean> => {
+    if (!user?.id) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to delete a response',
+        variant: 'destructive'
+      });
+      return false;
+    }
+
     try {
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('pbat_responses')
         .delete()
-        .eq('id', id);
+        .eq('id', responseId)
+        .eq('user_id', user.id);
       
-      if (error) throw error;
+      if (deleteError) throw deleteError;
       
       toast({
         title: 'Success',
@@ -368,8 +332,8 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
       });
       return false;
     }
-  }, [toast, refreshPBATResponses]);
-  
+  }, [user?.id, toast, refreshPBATResponses]);
+
   // Initialize data on mount
   useEffect(() => {
     if (user?.id) {
@@ -378,7 +342,7 @@ export const useMLPredictions = (): UseMLPredictionsReturn => {
       refreshModels();
     }
   }, [user?.id, refreshPBATResponses, refreshPredictions, refreshModels]);
-  
+
   return {
     // PBAT responses
     pbatResponses,
