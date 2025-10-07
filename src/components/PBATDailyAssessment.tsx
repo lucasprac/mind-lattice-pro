@@ -57,6 +57,7 @@ const PBAT_QUESTIONS: PBATQuestion[] = [
 const PBATDailyAssessment: React.FC = () => {
   const { responses, addResponse, loading, error } = usePBATResponses();
   const { trainModel, getPredictions, modelMetrics } = useMLPredictions();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -99,6 +100,7 @@ const PBATDailyAssessment: React.FC = () => {
         date: new Date(),
         responses: formValues,
       });
+
       setSubmitSuccess(true);
       setAlreadyCompleted(true);
 
@@ -158,13 +160,13 @@ const PBATDailyAssessment: React.FC = () => {
         )}
 
         {submitError && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert className="mb-4" variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{submitError}</AlertDescription>
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSubmit}>
           {PBAT_QUESTIONS.map((question) => (
             <div key={question.id} className="space-y-2">
               <Label htmlFor={question.id} className="text-base font-medium">
@@ -194,6 +196,7 @@ const PBATDailyAssessment: React.FC = () => {
               </div>
             </div>
           ))}
+
           <div className="flex gap-3 pt-4">
             <Button
               type="submit"
