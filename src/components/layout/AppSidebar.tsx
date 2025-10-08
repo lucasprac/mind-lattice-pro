@@ -6,9 +6,9 @@ import {
   Grid3x3,
   FileText,
   Settings,
-  Brain
+  Brain,
+  ClipboardList
 } from "lucide-react";
-
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +25,7 @@ import {
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Pacientes", url: "/patients", icon: Users },
+  { title: "PBAT Assessments", url: "/pbat-assessments", icon: ClipboardList },
   { title: "Matriz EEMM", url: "/eemm", icon: Grid3x3 },
   { title: "Redes de Processos", url: "/networks", icon: Network },
   { title: "Machine Learning", url: "/machine-learning", icon: Brain },
@@ -42,7 +43,7 @@ export function AppSidebar() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <Sidebar collapsible="icon" className="border-r">
+    <Sidebar className="border-r" collapsible="icon">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
@@ -56,7 +57,6 @@ export function AppSidebar() {
           )}
         </div>
       </SidebarHeader>
-
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Principal</SidebarGroupLabel>
@@ -67,7 +67,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
                     <NavLink to={item.url}>
                       <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      {item.title}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -75,7 +75,6 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
         <SidebarGroup>
           <SidebarGroupLabel>Configurações</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -84,7 +83,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={isActive("/settings")}>
                   <NavLink to="/settings">
                     <Settings className="h-4 w-4" />
-                    <span>Configurações</span>
+                    Configurações
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
