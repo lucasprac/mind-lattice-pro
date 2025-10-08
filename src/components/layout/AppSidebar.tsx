@@ -6,8 +6,7 @@ import {
   Grid3x3,
   FileText,
   Settings,
-  Brain,
-  ClipboardList
+  Brain
 } from "lucide-react";
 import {
   Sidebar,
@@ -25,7 +24,6 @@ import {
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Pacientes", url: "/patients", icon: Users },
-  { title: "PBAT Assessments", url: "/pbat-assessments", icon: ClipboardList },
   { title: "Matriz EEMM", url: "/eemm", icon: Grid3x3 },
   { title: "Redes de Processos", url: "/networks", icon: Network },
   { title: "Machine Learning", url: "/machine-learning", icon: Brain },

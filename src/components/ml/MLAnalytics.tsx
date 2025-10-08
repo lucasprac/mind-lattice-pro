@@ -59,9 +59,9 @@ type AnalyticsData = {
 
 const COLORS = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#ef4444']
 
-// Environment config
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+// Environment config - using Vite variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Feature engineering from PBAT assessment
@@ -208,7 +208,7 @@ export default function MLAnalytics() {
         if (pErr) throw pErr
 
         const { data: pbat, error: aErr } = await supabase
-          .from('pbat_assessments')
+          .from('patient_assessments')
           .select('*')
           .order('created_at', { ascending: false })
         if (aErr) throw aErr
@@ -364,4 +364,115 @@ export default function MLAnalytics() {
               <PieChart>
                 <Pie data={analytics.categoryDistribution} dataKey="value" nameKey="name" outerRadius={100} label>
                   {analytics.categoryDistribution.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Níveis de confiança</CardTitle>
+            <CardDescription>Distribuição da confiança nas previsões</CardDescription>
+          </CardHeader>
+          <CardContent className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.confidenceLevels}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="range" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Accordion explicativo */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            Metodologia ML
+          </CardTitle>
+          <CardDescription>Como as previsões são calculadas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="features">
+              <AccordionTrigger>1. Features utilizadas</AccordionTrigger>
+              <AccordionContent>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Baseado em avaliações PBAT (1. Avaliação Inicial):
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li><strong>PHQ-9</strong>: Sintomas depressivos (0-27)</li>
+                  <li><strong>GAD-7</strong>: Ansiedade generalizada (0-21)</li>
+                  <li><strong>WHO-5</strong>: Bem-estar (0-25)</li>
+                  <li><strong>Qualidade do sono</strong>: Escala 1-5</li>
+                  <li><strong>Risco de aderência</strong>: Probabilidade de abandono (0-100%)</li>
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="model">
+              <AccordionTrigger>2. Modelo preditivo</AccordionTrigger>
+              <AccordionContent>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Regressão logística calibrada com pesos baseados em evidências científicas:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Depressão/ansiedade elevadas → maior risco de não resposta</li>
+                  <li>Melhor bem-estar/sono → menor risco</li>
+                  <li>Baixa aderência esperada → maior risco</li>
+                </ul>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Fórmula: risco = 1 / (1 + exp(-Σ(peso × feature)))
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="confidence">
+              <AccordionTrigger>3. Cálculo de confiança</AccordionTrigger>
+              <AccordionContent>
+                <p className="text-sm text-muted-foreground mb-2">
+                  A confiança reflete:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li><strong>Completude de dados</strong>: Quanto mais features disponíveis, maior a confiança</li>
+                  <li><strong>Calibração</strong>: Previsões próximas aos limites (0% ou 100%) têm maior confiança</li>
+                  <li><strong>Mínimo</strong>: 20% mesmo com dados incompletos</li>
+                </ul>
+                <Badge variant="outline" className="mt-2">
+                  Atualmente {highConfPct}% das previsões têm confiança &gt; 90%
+                </Badge>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="validation">
+              <AccordionTrigger>4. Validação e acurácia</AccordionTrigger>
+              <AccordionContent>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Quando disponíveis desfechos reais (session_outcomes), calculamos:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Acurácia = % de previsões corretas</li>
+                  <li>Limiar de não-resposta: outcome_score &lt; 50</li>
+                  <li>Comparação: risco previsto &gt;= 50% vs. desfecho observado</li>
+                </ul>
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  Inspirado em: Communications Medicine (2024) - ML para predição de resposta terapêutica
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

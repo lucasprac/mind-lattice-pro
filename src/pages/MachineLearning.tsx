@@ -142,7 +142,7 @@ const MachineLearning = () => {
       }
 
       // Get condition from latest record or default
-      const condition = latestRecord?.diagnosis || patient.medical_conditions || 'Não especificado';
+      const condition = latestRecord?.description || patient.notes || 'Não especificado';
 
       return {
         id: patient.id,
@@ -336,11 +336,11 @@ const MachineLearning = () => {
               </TabsList>
 
               <TabsContent value="predictive" className="space-y-4">
-                <MLAnalytics patientId={selectedPatient} />
+                <MLAnalytics />
               </TabsContent>
 
               <TabsContent value="patterns" className="space-y-4">
-                <MLInsights patientId={selectedPatient} />
+                <MLInsights />
               </TabsContent>
 
               <TabsContent value="training" className="space-y-4">
@@ -348,7 +348,7 @@ const MachineLearning = () => {
               </TabsContent>
 
               <TabsContent value="visualization" className="space-y-4">
-                <MLPredictionDashboard patientId={selectedPatient} />
+                <MLPredictionDashboard />
               </TabsContent>
             </Tabs>
           )}

@@ -25,7 +25,6 @@ import PatientFunctionalAnalysis from "./pages/PatientFunctionalAnalysis";
 import Mediators from "./pages/Mediators";
 import FunctionalAnalysis from "./pages/FunctionalAnalysis";
 import MachineLearning from "./pages/MachineLearning";
-import PBATAssessments from "./pages/PBATAssessments";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,7 +49,6 @@ const App = () => (
             <Route path="/patients/:patientId/session/:recordId/network" element={<ProtectedRoute><AppLayout><SessionNetwork /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/session/:recordId/mediators" element={<ProtectedRoute><AppLayout><SessionMediators /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/session/:recordId/functional" element={<ProtectedRoute><AppLayout><PatientFunctionalAnalysis /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/pbat-assessments" element={<ProtectedRoute><AppLayout><PBATAssessments /></AppLayout></ProtectedRoute>} />
             <Route path="/eemm" element={<ProtectedRoute><AppLayout><EEMMMatrix /></AppLayout></ProtectedRoute>} />
             <Route path="/networks" element={<ProtectedRoute><AppLayout><Networks /></AppLayout></ProtectedRoute>} />
             <Route path="/mediators" element={<ProtectedRoute><AppLayout><Mediators /></AppLayout></ProtectedRoute>} />
