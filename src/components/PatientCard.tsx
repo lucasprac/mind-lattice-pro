@@ -17,7 +17,8 @@ import {
   FileText, 
   Network,
   Calendar,
-  ArrowRight
+  ArrowRight,
+  Trash2
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,12 +32,13 @@ interface Patient {
   address?: string;
   status: "active" | "inactive" | "discharged";
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 interface PatientCardProps {
   patient: Patient;
   onEdit?: (patient: Patient) => void;
+  onDelete?: (patient: Patient) => void;
   onViewRecords?: (patient: Patient) => void;
   onViewNetwork?: (patient: Patient) => void;
   onViewRoadmap?: (patient: Patient) => void;
@@ -53,23 +55,24 @@ const calculateAge = (birthDate: string): number => {
   const birth = new Date(birthDate);
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
     age--;
   }
-  
+
   return age;
 };
 
 export const PatientCard = ({ 
   patient, 
   onEdit, 
+  onDelete,
   onViewRecords, 
   onViewNetwork,
   onViewRoadmap
 }: PatientCardProps) => {
   const statusInfo = statusConfig[patient.status];
-  
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -92,7 +95,7 @@ export const PatientCard = ({
               </div>
             </div>
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm">
@@ -116,11 +119,18 @@ export const PatientCard = ({
                 <Network className="h-4 w-4 mr-2" />
                 Rede de Processos
               </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => onDelete?.(patient)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Excluir Paciente
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </CardHeader>
-      
+
       <CardContent className="pt-4">
         {/* Contact Information Section */}
         {(patient.email || patient.phone || patient.address) && (
@@ -133,7 +143,7 @@ export const PatientCard = ({
                 <span className="text-foreground">{patient.email}</span>
               </div>
             )}
-            
+
             {patient.phone && (
               <div className="flex items-center gap-3 text-sm">
                 <div className="flex-shrink-0 w-8 h-8 rounded-md bg-muted flex items-center justify-center">
@@ -142,7 +152,7 @@ export const PatientCard = ({
                 <span className="text-foreground">{patient.phone}</span>
               </div>
             )}
-            
+
             {patient.address && (
               <div className="flex items-center gap-3 text-sm">
                 <div className="flex-shrink-0 w-8 h-8 rounded-md bg-muted flex items-center justify-center">
@@ -153,7 +163,7 @@ export const PatientCard = ({
             )}
           </div>
         )}
-        
+
         {/* Metadata Section */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
           <Calendar className="h-3.5 w-3.5" />
@@ -161,7 +171,7 @@ export const PatientCard = ({
             Criado em {format(new Date(patient.created_at), "dd/MM/yyyy", { locale: ptBR })}
           </span>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-2">
           <Button 
