@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Save, ClipboardList } from "lucide-react";
+import { ArrowLeft, Save, ClipboardList, CheckCircle2, Clock, Eye } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { usePatientAssessments } from "@/hooks/usePatientAssessments";
 import { format } from "date-fns";
@@ -59,13 +59,31 @@ const PatientAssessment = () => {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
   const { patients } = usePatients();
-  const { saveAssessment } = usePatientAssessments(patientId || "");
-  
+  const { assessments, saveAssessment } = usePatientAssessments(patientId || "");
+
   const patient = patients.find(p => p.id === patientId);
-  
+  const latestAssessment = assessments?.[0]; // Assume assessments are sorted by date desc
+
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [healthStatus, setHealthStatus] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [showResults, setShowResults] = useState(false);
+
+  useEffect(() => {
+    // If there's a latest assessment, populate the form with its data
+    if (latestAssessment && !showResults) {
+      const newAnswers: Record<string, number> = {};
+      for (let i = 1; i <= 34; i++) {
+        const value = latestAssessment[`q${i}` as keyof typeof latestAssessment];
+        if (typeof value === 'number') {
+          newAnswers[`q${i}`] = value;
+        }
+      }
+      setAnswers(newAnswers);
+      setHealthStatus(latestAssessment.q29 as string || "");
+      setNotes(latestAssessment.notes || "");
+    }
+  }, [latestAssessment, showResults]);
 
   if (!patient) {
     return (
@@ -110,9 +128,116 @@ const PatientAssessment = () => {
 
     const success = await saveAssessment(assessmentData);
     if (success) {
-      navigate(`/patients/${patientId}`);
+      // Navigate automatically to network analysis
+      navigate(`/patients/${patientId}/network`);
     }
   };
+
+  const handleShowResults = () => {
+    setShowResults(true);
+  };
+
+  const calculatePBATScore = () => {
+    let total = 0;
+    for (let i = 1; i <= 23; i++) {
+      total += answers[`q${i}`] || 0;
+    }
+    return (total / 23).toFixed(1);
+  };
+
+  const calculateOutcomeScore = () => {
+    let total = 0;
+    for (let i = 24; i <= 28; i++) {
+      total += answers[`q${i}`] || 0;
+    }
+    return (total / 5).toFixed(1);
+  };
+
+  const calculateVitalityScore = () => {
+    let total = 0;
+    // Questions 30-32 are positive, 33-34 are negative (reverse scored)
+    for (let i = 30; i <= 32; i++) {
+      total += answers[`q${i}`] || 0;
+    }
+    for (let i = 33; i <= 34; i++) {
+      total += (100 - (answers[`q${i}`] || 0));
+    }
+    return (total / 5).toFixed(1);
+  };
+
+  // If assessment exists and user wants to see results
+  if (latestAssessment && showResults) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Button
+            variant="ghost"
+            onClick={() => setShowResults(false)}
+            className="mb-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar para Formulário
+          </Button>
+          <h1 className="text-3xl font-bold mb-2">Resultados da Avaliação - {patient.full_name}</h1>
+          <p className="text-muted-foreground">
+            Avaliação realizada em {format(new Date(latestAssessment.assessment_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">PBAT Score</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-primary">{calculatePBATScore()}</div>
+              <p className="text-sm text-muted-foreground">Funcionamento baseado em processos</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Outcome Score</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-orange-600">{calculateOutcomeScore()}</div>
+              <p className="text-sm text-muted-foreground">Medidas de resultado</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Vitality Score</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600">{calculateVitalityScore()}</div>
+              <p className="text-sm text-muted-foreground">Vitalidade e energia</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {latestAssessment.notes && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Observações</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm">{latestAssessment.notes}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex justify-between">
+          <Button variant="outline" onClick={() => navigate(`/patients/${patientId}`)}>
+            Voltar para Roadmap
+          </Button>
+          <Button onClick={() => navigate(`/patients/${patientId}/network`)}>
+            Continuar para Análise de Rede
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -125,10 +250,40 @@ const PatientAssessment = () => {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar para Roadmap
         </Button>
-        <h1 className="text-3xl font-bold mb-2">Avaliação Inicial - {patient.full_name}</h1>
-        <p className="text-muted-foreground">
-          Escala PBAT (Process-Based Assessment Tool)
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Avaliação Inicial - {patient.full_name}</h1>
+            <p className="text-muted-foreground">
+              Escala PBAT (Process-Based Assessment Tool)
+            </p>
+          </div>
+
+          {latestAssessment && (
+            <div className="flex items-center gap-3">
+              <Badge variant="default" className="bg-green-100 text-green-800">
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Preenchida
+              </Badge>
+              <div className="text-right">
+                <div className="text-sm font-medium">
+                  {format(new Date(latestAssessment.assessment_date), "dd/MM/yyyy", { locale: ptBR })}
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center">
+                  <Clock className="h-3 w-3 mr-1" />
+                  {format(new Date(latestAssessment.assessment_date), "HH:mm", { locale: ptBR })}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShowResults}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Ver Resultados
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
@@ -287,7 +442,7 @@ const PatientAssessment = () => {
         </Button>
         <Button onClick={handleSave}>
           <Save className="h-4 w-4 mr-2" />
-          Salvar Avaliação
+          Salvar e Continuar
         </Button>
       </div>
     </div>
