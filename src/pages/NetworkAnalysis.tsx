@@ -1,34 +1,80 @@
-import React from 'react';
-import { useParams, Navigate } from 'react-router-dom';
-import { usePatients } from '@/hooks/usePatients';
-import { NetworkPhaseManager } from '@/components/NetworkPhaseManager';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, 
-  User, 
-  Calendar, 
-  Network,
-  AlertCircle,
-  Loader2
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+  Network as NetworkIcon, 
+  Plus, 
+  Filter,
+  Users,
+  Target,
+  Zap,
+  ChevronRight,
+  Eye,
+  EyeOff
+} from "lucide-react";
+import { OptimizedNetworkCanvas } from "@/components/OptimizedNetworkCanvas";
+import { usePatients } from "@/hooks/usePatients";
+import { usePatientNetwork } from "@/hooks/usePatientNetwork";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
-const NetworkAnalysis: React.FC = () => {
-  const { patientId, sessionId } = useParams<{ patientId: string; sessionId: string }>();
-  const { patients, loading, error } = usePatients();
+const NetworkAnalysis = () => {
+  const { patientId } = useParams<{ patientId: string }>();
+  const navigate = useNavigate();
+  const { patients } = usePatients();
+  const { 
+    network, 
+    loading, 
+    error, 
+    addNode, 
+    addConnection, 
+    removeNode, 
+    removeConnection,
+    updateNodePositions,
+    filterBySession,
+    getAvailableSessions,
+    filteredSessionId,
+    allNetwork
+  } = usePatientNetwork(patientId || "");
+  const { toast } = useToast();
 
-  if (!patientId || !sessionId) {
-    return <Navigate to="/patients" replace />;
+  const [activeTab, setActiveTab] = useState("network");
+  const [selectedSessionFilter, setSelectedSessionFilter] = useState<string>("all");
+
+  const patient = patients.find(p => p.id === patientId);
+  const availableSessions = getAvailableSessions();
+
+  useEffect(() => {
+    if (selectedSessionFilter === "all") {
+      filterBySession(null);
+    } else {
+      filterBySession(selectedSessionFilter);
+    }
+  }, [selectedSessionFilter, filterBySession]);
+
+  if (!patient) {
+    return (
+      <div className="p-6">
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">Paciente não encontrado</p>
+          <Button className="mt-4" onClick={() => navigate("/patients")}>
+            Voltar para Pacientes
+          </Button>
+        </Card>
+      </div>
+    );
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Carregando informações do paciente...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-muted-foreground">Carregando rede de processos...</p>
         </div>
       </div>
     );
@@ -36,156 +82,299 @@ const NetworkAnalysis: React.FC = () => {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto mt-8">
-        <Card className="p-6">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Erro ao Carregar Dados</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Button asChild>
-              <Link to="/patients">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar para Pacientes
-              </Link>
-            </Button>
-          </div>
+      <div className="p-6">
+        <Card className="p-12 text-center">
+          <p className="text-destructive mb-4">Erro: {error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Tentar Novamente
+          </Button>
         </Card>
       </div>
     );
   }
 
-  const patient = patients.find(p => p.id === patientId);
+  const handleAddProcess = async (processData: any) => {
+    const success = await addNode({
+      name: processData.name,
+      type: processData.type,
+      description: processData.description,
+      x: Math.random() * 400 + 200,
+      y: Math.random() * 300 + 100
+    });
 
-  if (!patient) {
-    return (
-      <div className="max-w-2xl mx-auto mt-8">
-        <Card className="p-6">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Paciente Não Encontrado</h2>
-            <p className="text-gray-600 mb-4">O paciente solicitado não foi encontrado ou pode ter sido removido.</p>
-            <Button asChild>
-              <Link to="/patients">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar para Pacientes
-              </Link>
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
+    if (success) {
+      toast({
+        title: "Processo adicionado",
+        description: "Novo processo foi adicionado à rede.",
+      });
+    }
+  };
+
+  const handleAddConnection = async (sourceId: string, targetId: string, type: string) => {
+    const success = await addConnection({
+      source_node_id: sourceId,
+      target_node_id: targetId,
+      type: type,
+      description: ""
+    });
+
+    if (success) {
+      toast({
+        title: "Conexão criada",
+        description: "Nova conexão foi estabelecida entre os processos.",
+      });
+    }
+  };
+
+  const handleRemoveProcess = async (nodeId: string) => {
+    const success = await removeNode(nodeId);
+    if (success) {
+      toast({
+        title: "Processo removido",
+        description: "O processo foi removido da rede.",
+      });
+    }
+  };
+
+  const handleRemoveConnection = async (connectionId: string) => {
+    const success = await removeConnection(connectionId);
+    if (success) {
+      toast({
+        title: "Conexão removida",
+        description: "A conexão foi removida da rede.",
+      });
+    }
+  };
+
+  const networkStats = {
+    totalNodes: allNetwork?.nodes.length || 0,
+    totalConnections: allNetwork?.connections.length || 0,
+    visibleNodes: network?.nodes.length || 0,
+    visibleConnections: network?.connections.length || 0,
+    totalSessions: availableSessions.length
+  };
+
+  const nextStep = () => {
+    navigate(`/patients/${patientId}/mediators`);
+  };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" asChild>
-              <Link to={`/patients/${patientId}`}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Link>
-            </Button>
-            
+      <div className="flex items-center justify-between">
+        <div>
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/patients/${patientId}`)}
+            className="mb-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar para Roadmap
+          </Button>
+          <h1 className="text-3xl font-bold mb-2">Análise da Rede - {patient.full_name}</h1>
+          <p className="text-muted-foreground">
+            Rede principal de processos psicológicos com marcação de sessões
+          </p>
+        </div>
+
+        <Button onClick={nextStep} className="bg-primary hover:bg-primary/90">
+          Avançar para Análise de Mediadores
+          <ChevronRight className="h-4 w-4 ml-2" />
+        </Button>
+      </div>
+
+      {/* Network Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Network className="h-6 w-6 text-blue-500" />
-              <h1 className="text-2xl font-bold text-gray-900">Análise de Rede</h1>
+              <NetworkIcon className="h-4 w-4 text-blue-600" />
+              <div>
+                <p className="text-2xl font-bold">{networkStats.visibleNodes}</p>
+                <p className="text-xs text-muted-foreground">
+                  Processos {selectedSessionFilter !== "all" ? "na sessão" : "totais"}
+                </p>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-green-600" />
+              <div>
+                <p className="text-2xl font-bold">{networkStats.visibleConnections}</p>
+                <p className="text-xs text-muted-foreground">
+                  Conexões {selectedSessionFilter !== "all" ? "na sessão" : "totais"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-purple-600" />
+              <div>
+                <p className="text-2xl font-bold">{networkStats.totalSessions}</p>
+                <p className="text-xs text-muted-foreground">Sessões com processos</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-orange-600" />
+              <div>
+                <p className="text-2xl font-bold">
+                  {networkStats.visibleConnections > 0 ? (networkStats.visibleConnections / Math.max(networkStats.visibleNodes, 1)).toFixed(1) : "0"}
+                </p>
+                <p className="text-xs text-muted-foreground">Densidade da rede</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Controls */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filtro por Sessão:</span>
+            </div>
+
+            <Select value={selectedSessionFilter} onValueChange={setSelectedSessionFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    Todas as Sessões
+                  </div>
+                </SelectItem>
+                {availableSessions.map((session) => (
+                  <SelectItem key={session.id} value={session.id}>
+                    <div className="flex items-center gap-2">
+                      <EyeOff className="h-4 w-4" />
+                      {session.name} ({session.count} processos)
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          
+
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-sm">
-              <Calendar className="h-4 w-4 mr-1" />
-              Sessão #{sessionId}
+            {selectedSessionFilter !== "all" && (
+              <Badge variant="secondary">
+                Mostrando apenas: {availableSessions.find(s => s.id === selectedSessionFilter)?.name}
+              </Badge>
+            )}
+
+            <Badge variant="outline">
+              Rede Principal Unificada
             </Badge>
           </div>
         </div>
-        
-        <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <User className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-gray-900">{patient.full_name}</h2>
-              <p className="text-sm text-gray-600">
-                {patient.email} • {patient.status === 'active' ? 'Ativo' : 'Inativo'}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex-1" />
-          
-          <div className="text-right text-sm text-gray-500">
-            <p>Idade: {patient.birth_date ? new Date().getFullYear() - new Date(patient.birth_date).getFullYear() : 'N/A'} anos</p>
-            <p>Telefone: {patient.phone || 'N/A'}</p>
-          </div>
-        </div>
       </Card>
-      
-      {/* Network Analysis Information */}
-      <Card className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-              <Network className="h-5 w-5" />
-              2. Análise de Rede
-            </h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Criar e conectar processos psicológicos</li>
-              <li>• Alternar entre rede da sessão e geral</li>
-              <li>• Prevenção de nomes duplicados</li>
-              <li>• Sistema simplificado de 3 marcadores</li>
-            </ul>
+
+      {/* Network Visualization */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="network">Visualização da Rede</TabsTrigger>
+          <TabsTrigger value="analysis">Análise Estrutural</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="network" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <NetworkIcon className="h-5 w-5" />
+                Rede de Processos Psicológicos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {network && (
+                <div className="border rounded-lg bg-white">
+                  <OptimizedNetworkCanvas
+                    nodes={network.nodes}
+                    connections={network.connections}
+                    onNodePositionChange={updateNodePositions}
+                    onAddConnection={handleAddConnection}
+                    onRemoveNode={handleRemoveProcess}
+                    onRemoveConnection={handleRemoveConnection}
+                    height={600}
+                    width="100%"
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Análise dos Processos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-sm">
+                    <strong>Total de Processos:</strong> {networkStats.totalNodes}
+                  </div>
+                  <div className="text-sm">
+                    <strong>Processos Visíveis:</strong> {networkStats.visibleNodes}
+                  </div>
+                  <div className="text-sm">
+                    <strong>Sessões com Processos:</strong> {networkStats.totalSessions}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Análise das Conexões</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-sm">
+                    <strong>Total de Conexões:</strong> {networkStats.totalConnections}
+                  </div>
+                  <div className="text-sm">
+                    <strong>Conexões Visíveis:</strong> {networkStats.visibleConnections}
+                  </div>
+                  <div className="text-sm">
+                    <strong>Densidade da Rede:</strong> {networkStats.visibleConnections > 0 ? (networkStats.visibleConnections / Math.max(networkStats.visibleNodes, 1)).toFixed(2) : "0"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <h3 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
-              <Network className="h-5 w-5" />
-              3. Análise de Mediadores
-            </h3>
-            <ul className="text-sm text-green-800 space-y-1">
-              <li>• Vincular mediadores aos processos existentes</li>
-              <li>• NÃO pode adicionar novos processos</li>
-              <li>• Define força da relação processo-mediador</li>
-              <li>• Usa apenas processos da sessão atual</li>
-            </ul>
+        </TabsContent>
+      </Tabs>
+
+      {/* Info Card */}
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <div className="flex items-start gap-3">
+          <NetworkIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-blue-900 mb-1">Sobre a Rede Principal</h3>
+            <p className="text-sm text-blue-800">
+              Esta é a rede principal unificada que contempla todos os processos criados em todas as sessões. 
+              Cada processo mantém a marca da sessão em que foi criado, permitindo filtrar a visualização 
+              por sessão específica. Use o filtro "Alterar para Sessão" para focar nos processos de uma sessão específica.
+            </p>
           </div>
-          
-          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <h3 className="font-semibold text-purple-900 mb-2 flex items-center gap-2">
-              <Network className="h-5 w-5" />
-              4. Análise Funcional
-            </h3>
-            <ul className="text-sm text-purple-800 space-y-1">
-              <li>• Escolher apenas o processo para análise</li>
-              <li>• Mediadores já estão vinculados</li>
-              <li>• NÃO pode alterar vínculos processo-mediador</li>
-              <li>• Foco na análise funcional do processo</li>
-            </ul>
-          </div>
-        </div>
-      </Card>
-      
-      {/* Phase Manager */}
-      <NetworkPhaseManager 
-        patientId={patientId} 
-        sessionId={sessionId}
-      />
-      
-      {/* Footer Information */}
-      <Card className="p-4 bg-gray-50">
-        <div className="text-center text-sm text-gray-600">
-          <p>
-            <strong>Otimizações Implementadas:</strong> 
-            Marcadores simplificados (3 tipos), edição de texto melhorada, confirmação de exclusão, 
-            prevenção de nomes duplicados, e fluxo de fases com restrições adequadas.
-          </p>
-          <p className="mt-2">
-            <strong>Fluxo:</strong> Complete a Análise de Rede → Vincule Mediadores → Realize Análise Funcional
-          </p>
         </div>
       </Card>
     </div>
