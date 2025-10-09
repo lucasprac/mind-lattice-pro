@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, X, Save } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
-import { usePatientNetwork } from "@/hooks/usePatientNetwork";
+import { useSessionNetwork } from "@/hooks/useSessionNetwork";
 import { usePatientMediators } from "@/hooks/usePatientMediators";
 
 const EEMM_STRUCTURE = {
@@ -55,8 +55,8 @@ const SessionMediators = () => {
   const { patients } = usePatients();
   const { records } = useRecords(patientId);
   
-  // Get network data from this session only
-  const { networkData } = usePatientNetwork(patientId || "", recordId, false);
+  // Get network data from this session only (not general)
+  const { networkData } = useSessionNetwork(patientId || "", recordId, false);
   const { mediatorProcesses, loading, saveMediators } = usePatientMediators(
     patientId || "",
     recordId
