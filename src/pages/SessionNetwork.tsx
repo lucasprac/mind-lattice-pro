@@ -7,7 +7,7 @@ import { ArrowLeft, Network as NetworkIcon, RefreshCw } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
 import { useSessionNetwork } from "@/hooks/useSessionNetwork";
-import { OptimizedNetworkCanvas } from "@/components/OptimizedNetworkCanvas";
+import { NetworkCanvasAdapter } from "@/components/NetworkCanvasAdapter";
 import { toast } from "sonner";
 
 const SessionNetwork = () => {
@@ -124,10 +124,10 @@ const SessionNetwork = () => {
             <p className="text-muted-foreground">Carregando rede...</p>
           </div>
         ) : (
-          <OptimizedNetworkCanvas
+          <NetworkCanvasAdapter
             networkData={networkData}
-            readOnly={false}
             onSave={saveNetwork}
+            readOnly={false}
           />
         )}
       </Card>
