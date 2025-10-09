@@ -2,26 +2,7 @@ import React from 'react';
 import { OptimizedNetworkCanvas } from './OptimizedNetworkCanvas';
 import { NetworkData } from '@/hooks/useSessionNetwork';
 
-// EEMM Dimensions mapping
-const EEMM_DIMENSIONS = {
-  cognition: 'cognition',
-  emotion: 'emotion', 
-  attention: 'attention',
-  self: 'self',
-  motivation: 'motivation',
-  behavior: 'behavior'
-} as const;
-
-const EEMM_LEVELS = {
-  biology: 'biology',
-  psychology: 'psychology', 
-  social: 'social'
-} as const;
-
-type EEMMDimension = keyof typeof EEMM_DIMENSIONS;
-type EEMMLevel = keyof typeof EEMM_LEVELS;
-
-// Interface que o OptimizedNetworkCanvas espera
+// Interface simplificada que o OptimizedNetworkCanvas espera (sem dimensão e nível)
 interface ProcessNode {
   id: string;
   x: number;
@@ -29,8 +10,8 @@ interface ProcessNode {
   width: number;
   height: number;
   text: string;
-  dimension: EEMMDimension;
-  level: EEMMLevel;
+  dimension: 'cognition'; // Valor fixo para compatibilidade
+  level: 'psychology'; // Valor fixo para compatibilidade
   intensity: number;
   frequency: number;
 }
@@ -68,8 +49,8 @@ const mapNetworkDataToCanvas = (networkData: NetworkData): {
     width: 220, // Valor padrão
     height: 120, // Valor padrão
     text: node.text,
-    dimension: 'cognition' as EEMMDimension, // Valor padrão
-    level: 'psychology' as EEMMLevel, // Valor padrão
+    dimension: 'cognition', // Valor fixo para compatibilidade
+    level: 'psychology', // Valor fixo para compatibilidade
     intensity: 3, // Valor padrão
     frequency: 3, // Valor padrão
   }));
