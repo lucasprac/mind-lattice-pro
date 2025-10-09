@@ -12,6 +12,10 @@ import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
 import EEMMMatrix from "./pages/EEMMMatrix";
 import Networks from "./pages/Networks";
+import NetworkAnalysis from "./pages/NetworkAnalysis";
+import PatientNetwork from "./pages/PatientNetwork";
+import PatientRoadmap from "./pages/PatientRoadmap";
+import PatientMediators from "./pages/PatientMediators";
 import Interventions from "./pages/Interventions";
 import Records from "./pages/Records";
 import Settings from "./pages/Settings";
@@ -41,7 +45,16 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
             <Route path="/patients" element={<ProtectedRoute><AppLayout><Patients /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId" element={<ProtectedRoute><AppLayout><PatientRoadmapList /></AppLayout></ProtectedRoute>} />
+            
+            {/* ROTAS DE PACIENTE INDIVIDUAL - CORRIGIDAS */}
+            <Route path="/patients/:patientId" element={<ProtectedRoute><AppLayout><PatientRoadmap /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/assessment" element={<ProtectedRoute><AppLayout><PatientAssessment /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/network" element={<ProtectedRoute><AppLayout><NetworkAnalysis /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/mediators" element={<ProtectedRoute><AppLayout><PatientMediators /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/functional" element={<ProtectedRoute><AppLayout><PatientFunctionalAnalysis /></AppLayout></ProtectedRoute>} />
+            <Route path="/patients/:patientId/records" element={<ProtectedRoute><AppLayout><Records /></AppLayout></ProtectedRoute>} />
+            
+            {/* ROTAS DE SESSÃO ESPECÍFICA */}
             <Route path="/patients/:patientId/session/new" element={<ProtectedRoute><AppLayout><PatientSession /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/session/:recordId" element={<ProtectedRoute><AppLayout><PatientSession /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/session/:recordId/roadmap" element={<ProtectedRoute><AppLayout><SessionRoadmap /></AppLayout></ProtectedRoute>} />
@@ -49,6 +62,8 @@ const App = () => (
             <Route path="/patients/:patientId/session/:recordId/network" element={<ProtectedRoute><AppLayout><SessionNetwork /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/session/:recordId/mediators" element={<ProtectedRoute><AppLayout><SessionMediators /></AppLayout></ProtectedRoute>} />
             <Route path="/patients/:patientId/session/:recordId/functional" element={<ProtectedRoute><AppLayout><PatientFunctionalAnalysis /></AppLayout></ProtectedRoute>} />
+            
+            {/* OUTRAS ROTAS */}
             <Route path="/eemm" element={<ProtectedRoute><AppLayout><EEMMMatrix /></AppLayout></ProtectedRoute>} />
             <Route path="/networks" element={<ProtectedRoute><AppLayout><Networks /></AppLayout></ProtectedRoute>} />
             <Route path="/mediators" element={<ProtectedRoute><AppLayout><Mediators /></AppLayout></ProtectedRoute>} />
@@ -57,6 +72,7 @@ const App = () => (
             <Route path="/records" element={<ProtectedRoute><AppLayout><Records /></AppLayout></ProtectedRoute>} />
             <Route path="/machine-learning" element={<ProtectedRoute><AppLayout><MachineLearning /></AppLayout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
