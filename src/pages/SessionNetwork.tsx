@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Network as NetworkIcon, RefreshCw } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
-import { usePatientNetwork } from "@/hooks/usePatientNetwork";
+import { useSessionNetwork } from "@/hooks/useSessionNetwork";
 import { OptimizedNetworkCanvas } from "@/components/OptimizedNetworkCanvas";
 import { toast } from "sonner";
 
@@ -17,7 +17,7 @@ const SessionNetwork = () => {
   const { records } = useRecords(patientId);
   const [isGeneral, setIsGeneral] = useState(false);
   
-  const { networkData, loading, saveNetwork } = usePatientNetwork(
+  const { networkData, loading, saveNetwork } = useSessionNetwork(
     patientId || "",
     recordId,
     isGeneral
