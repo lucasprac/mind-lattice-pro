@@ -3,11 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Network as NetworkIcon, RefreshCw } from "lucide-react";
+import { ArrowLeft, Network as NetworkIcon, RefreshCw, ArrowRight } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
 import { useSessionNetwork } from "@/hooks/useSessionNetwork";
-import { NetworkCanvasAdapter } from "@/components/NetworkCanvasAdapter";
+import { SimpleNetworkCanvas } from "@/components/SimpleNetworkCanvas";
 import { toast } from "sonner";
 
 const SessionNetwork = () => {
@@ -15,12 +15,10 @@ const SessionNetwork = () => {
   const navigate = useNavigate();
   const { patients } = usePatients();
   const { records } = useRecords(patientId);
-  const [isGeneral, setIsGeneral] = useState(false);
   
-  const { networkData, loading, saveNetwork } = useSessionNetwork(
+  const { networkData, allNetworkData, filteredBySession, loading, saveNetwork, toggleSessionFilter } = useSessionNetwork(
     patientId || "",
-    recordId,
-    isGeneral
+    recordId
   );
   
   const patient = patients.find(p => p.id === patientId);
@@ -41,30 +39,43 @@ const SessionNetwork = () => {
     );
   }
 
-  const handleToggleNetwork = () => {
-    setIsGeneral(!isGeneral);
+  const handleToggleFilter = () => {
+    toggleSessionFilter();
     toast.info(
-      !isGeneral 
-        ? "Alterado para Rede Geral - Processos serão salvos na rede global do paciente" 
-        : "Alterado para Rede da Sessão - Processos serão salvos apenas nesta sessão"
+      !filteredBySession 
+        ? "Visualizando apenas processos desta sessão" 
+        : "Visualizando todos os processos da rede geral"
     );
+  };
+
+  // Função para navegar para a próxima etapa
+  const navigateToNextStep = () => {
+    navigate(`/patients/${patientId}/session/${recordId}/mediators`);
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <Button
-          variant="ghost"
-          onClick={() => navigate(`/patients/${patientId}/session/${recordId}/roadmap`)}
-          className="mb-2"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar para Roadmap
+      <div className="flex justify-between items-start">
+        <div>
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/patients/${patientId}/session/${recordId}/roadmap`)}
+            className="mb-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar para Roadmap
+          </Button>
+          <h1 className="text-3xl font-bold mb-2">Análise da Rede - {patient.full_name}</h1>
+          <p className="text-muted-foreground">
+            Construa a rede de processos identificando características relevantes e suas conexões
+          </p>
+        </div>
+        
+        {/* Botão para avançar etapa */}
+        <Button onClick={navigateToNextStep} className="mt-8">
+          Próxima Etapa
+          <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
-        <h1 className="text-3xl font-bold mb-2">Análise da Rede - {patient.full_name}</h1>
-        <p className="text-muted-foreground">
-          Construa a rede de processos identificando características relevantes e suas conexões
-        </p>
       </div>
 
       {/* Journey Progress Card */}
@@ -80,7 +91,11 @@ const SessionNetwork = () => {
           </div>
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Processos Criados:</span>
+              <span className="text-muted-foreground">Processos Total:</span>
+              <Badge variant="outline" className="bg-white">{allNetworkData.nodes.length}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Visualizando:</span>
               <Badge variant="outline" className="bg-white">{networkData.nodes.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -91,29 +106,29 @@ const SessionNetwork = () => {
         </div>
       </Card>
 
-      {/* Network Type Toggle */}
+      {/* Network Filter Toggle */}
       <Card className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <NetworkIcon className="h-5 w-5 text-purple-600" />
             <div>
               <h3 className="font-semibold text-sm">
-                {isGeneral ? "Rede Geral do Paciente" : "Rede da Sessão"}
+                {filteredBySession ? "Visualização: Apenas desta Sessão" : "Visualização: Rede Geral Completa"}
               </h3>
               <p className="text-xs text-muted-foreground">
-                {isGeneral 
-                  ? "Processos adicionados serão salvos na rede global e visíveis em todas as sessões" 
-                  : "Processos adicionados serão específicos desta sessão"}
+                {filteredBySession 
+                  ? "Mostrando apenas processos criados nesta sessão" 
+                  : "Mostrando todos os processos de todas as sessões"}
               </p>
             </div>
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={handleToggleNetwork}
+            onClick={handleToggleFilter}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            {isGeneral ? "Alternar para Sessão" : "Alternar para Geral"}
+            {filteredBySession ? "Ver Rede Completa" : "Ver Apenas Esta Sessão"}
           </Button>
         </div>
       </Card>
@@ -124,7 +139,7 @@ const SessionNetwork = () => {
             <p className="text-muted-foreground">Carregando rede...</p>
           </div>
         ) : (
-          <NetworkCanvasAdapter
+          <SimpleNetworkCanvas
             networkData={networkData}
             onSave={saveNetwork}
             readOnly={false}
