@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Network as NetworkIcon, RefreshCw, ArrowRight, Filter } from "lucide-react";
+import { ArrowLeft, Network as NetworkIcon, RefreshCw, ArrowRight, Filter, AlertTriangle } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
 import { useSessionNetwork } from "@/hooks/useSessionNetwork";
