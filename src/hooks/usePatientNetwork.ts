@@ -29,6 +29,7 @@ export interface ProcessNode {
   level: keyof typeof EEMM_LEVELS;
   intensity: number;
   frequency: number;
+  sessionId?: string;  // NEW: Track which session this node was created/modified in
 }
 
 type MarkerType = 'arrow' | 'line' | 'circle';
@@ -42,6 +43,7 @@ export interface Connection {
   ambivalent: boolean;
   startMarker: MarkerType;
   endMarker: MarkerType;
+  sessionId?: string;  // NEW: Track which session this connection was created/modified in
 }
 
 export interface NetworkData {
@@ -177,6 +179,61 @@ export const usePatientNetwork = (patientId: string, recordId?: string, isGenera
     }
   };
 
+  // NEW: Method to filter nodes by session
+  const getNodesBySession = (sessionId: string): ProcessNode[] => {
+    return networkData.nodes.filter(node => node.sessionId === sessionId);
+  };
+
+  // NEW: Method to filter connections by session
+  const getConnectionsBySession = (sessionId: string): Connection[] => {
+    return networkData.connections.filter(conn => conn.sessionId === sessionId);
+  };
+
+  // NEW: Method to get all unique session IDs from the network
+  const getSessionIds = (): string[] => {
+    const nodeSessionIds = networkData.nodes
+      .map(node => node.sessionId)
+      .filter((id): id is string => id !== undefined);
+    const connectionSessionIds = networkData.connections
+      .map(conn => conn.sessionId)
+      .filter((id): id is string => id !== undefined);
+    return Array.from(new Set([...nodeSessionIds, ...connectionSessionIds]));
+  };
+
+  // NEW: Method to get network data filtered by session
+  const getNetworkBySession = (sessionId: string): NetworkData => {
+    return {
+      nodes: getNodesBySession(sessionId),
+      connections: getConnectionsBySession(sessionId)
+    };
+  };
+
+  // NEW: Method to update a node's session ID
+  const updateNodeSession = async (nodeId: string, sessionId: string): Promise<boolean> => {
+    const updatedNodes = networkData.nodes.map(node => 
+      node.id === nodeId ? { ...node, sessionId } : node
+    );
+    const updatedData = { ...networkData, nodes: updatedNodes };
+    const success = await saveNetwork(updatedData);
+    if (success) {
+      setNetworkData(updatedData);
+    }
+    return success;
+  };
+
+  // NEW: Method to update a connection's session ID
+  const updateConnectionSession = async (connectionId: string, sessionId: string): Promise<boolean> => {
+    const updatedConnections = networkData.connections.map(conn => 
+      conn.id === connectionId ? { ...conn, sessionId } : conn
+    );
+    const updatedData = { ...networkData, connections: updatedConnections };
+    const success = await saveNetwork(updatedData);
+    if (success) {
+      setNetworkData(updatedData);
+    }
+    return success;
+  };
+
   useEffect(() => {
     fetchNetwork();
   }, [user?.id, patientId, recordId, isGeneral]);
@@ -186,5 +243,12 @@ export const usePatientNetwork = (patientId: string, recordId?: string, isGenera
     loading,
     saveNetwork,
     refetch: fetchNetwork,
+    // NEW: Session-based filtering methods
+    getNodesBySession,
+    getConnectionsBySession,
+    getSessionIds,
+    getNetworkBySession,
+    updateNodeSession,
+    updateConnectionSession,
   };
 };
