@@ -9,6 +9,7 @@ export interface Record {
   therapist_id: string;
   session_date: string;
   session_number?: number;
+  name: string;
   description: string;
   keywords: string[];
   observations?: string;
@@ -38,7 +39,7 @@ export const useRecords = (patientId?: string) => {
       setError(null);
       
       let query = supabase
-        .from("records")
+        .from("therapy_records")
         .select(`
           *,
           patient:patients(
@@ -80,25 +81,37 @@ export const useRecords = (patientId?: string) => {
     }
 
     try {
+      // First, delete related assessments
+      const { error: assessmentError } = await supabase
+        .from("patient_assessments")
+        .delete()
+        .eq("session_id", recordId);
+
+      if (assessmentError) {
+        console.error("Erro ao deletar avaliações da sessão:", assessmentError);
+        // Continue anyway, as assessments might not exist
+      }
+
+      // Delete the therapy record
       const { error } = await supabase
-        .from("records")
+        .from("therapy_records")
         .delete()
         .eq("id", recordId)
         .eq("therapist_id", user.id);
 
       if (error) {
-        console.error("Erro ao deletar registro:", error);
-        toast.error("Erro ao deletar registro");
+        console.error("Erro ao deletar sessão:", error);
+        toast.error("Erro ao deletar sessão");
         return false;
       }
 
-      toast.success("Registro deletado com sucesso");
+      toast.success("Sessão deletada com sucesso");
       // Remove record from local state
       setRecords(prev => prev.filter(r => r.id !== recordId));
       return true;
     } catch (err) {
-      console.error("Erro inesperado ao deletar:", err);
-      toast.error("Erro inesperado ao deletar registro");
+      console.error("Erro inesperado ao deletar sessão:", err);
+      toast.error("Erro inesperado ao deletar sessão");
       return false;
     }
   };
@@ -111,7 +124,7 @@ export const useRecords = (patientId?: string) => {
 
     try {
       const { data, error } = await supabase
-        .from("records")
+        .from("therapy_records")
         .update(updates)
         .eq("id", recordId)
         .eq("therapist_id", user.id)
