@@ -51,18 +51,6 @@ export interface SessionPBATResponse {
   updated_at?: string;
 }
 
-export interface PBATStatistics {
-  pbat_score: number;
-  outcome_score: number;
-  vitality_score: number;
-  health_status: string;
-  scores_by_category: {
-    pbat: number;
-    outcome: number;
-    vitality: number;
-  };
-}
-
 const SESSION_PBAT_QUERY_KEY = 'session-pbat-responses';
 
 /**
@@ -83,8 +71,11 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
     queryKey: [SESSION_PBAT_QUERY_KEY, patientId, recordId],
     queryFn: async () => {
       if (!patientId || !recordId || !user?.id) {
-        throw new Error('Patient ID, Record ID and User ID are required');
+        console.log('Missing required IDs:', { patientId, recordId, userId: user?.id });
+        return null;
       }
+
+      console.log('Fetching PBAT for:', { patientId, recordId, therapistId: user.id });
 
       const { data, error } = await supabase
         .from('patient_assessments')
@@ -92,18 +83,19 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
         .eq('patient_id', patientId)
         .eq('session_id', recordId)
         .eq('therapist_id', user.id)
-        .maybeSingle(); // Use maybeSingle to avoid error when no record exists
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching session PBAT response:', error);
         throw error;
       }
 
+      console.log('Fetched PBAT response:', data);
       return data as SessionPBATResponse | null;
     },
     enabled: !!patientId && !!recordId && !!user?.id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // 30 minutes
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
   });
 
   // Create or update PBAT response for this session
@@ -113,53 +105,56 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
         throw new Error('Patient ID, Record ID and User ID are required');
       }
 
+      console.log('Saving PBAT data:', data);
+      console.log('IDs:', { patientId, recordId, therapistId: user.id });
+
       const assessmentData = {
         patient_id: patientId,
         session_id: recordId,
         therapist_id: user.id,
-        assessment_date: data.assessment_date || new Date().toISOString().split('T')[0],
-        // PBAT Questions (1-23)
-        q1: data.q1,
-        q2: data.q2,
-        q3: data.q3,
-        q4: data.q4,
-        q5: data.q5,
-        q6: data.q6,
-        q7: data.q7,
-        q8: data.q8,
-        q9: data.q9,
-        q10: data.q10,
-        q11: data.q11,
-        q12: data.q12,
-        q13: data.q13,
-        q14: data.q14,
-        q15: data.q15,
-        q16: data.q16,
-        q17: data.q17,
-        q18: data.q18,
-        q19: data.q19,
-        q20: data.q20,
-        q21: data.q21,
-        q22: data.q22,
-        q23: data.q23,
-        // Outcome Questions (24-28)
-        q24: data.q24,
-        q25: data.q25,
-        q26: data.q26,
-        q27: data.q27,
-        q28: data.q28,
-        // Health Status (29)
-        q29: data.q29,
-        // Vitality Questions (30-34)
-        q30: data.q30,
-        q31: data.q31,
-        q32: data.q32,
-        q33: data.q33,
-        q34: data.q34,
+        assessment_date: data.assessment_date || new Date().toISOString(),
+        q1: data.q1 || 0,
+        q2: data.q2 || 0,
+        q3: data.q3 || 0,
+        q4: data.q4 || 0,
+        q5: data.q5 || 0,
+        q6: data.q6 || 0,
+        q7: data.q7 || 0,
+        q8: data.q8 || 0,
+        q9: data.q9 || 0,
+        q10: data.q10 || 0,
+        q11: data.q11 || 0,
+        q12: data.q12 || 0,
+        q13: data.q13 || 0,
+        q14: data.q14 || 0,
+        q15: data.q15 || 0,
+        q16: data.q16 || 0,
+        q17: data.q17 || 0,
+        q18: data.q18 || 0,
+        q19: data.q19 || 0,
+        q20: data.q20 || 0,
+        q21: data.q21 || 0,
+        q22: data.q22 || 0,
+        q23: data.q23 || 0,
+        q24: data.q24 || 0,
+        q25: data.q25 || 0,
+        q26: data.q26 || 0,
+        q27: data.q27 || 0,
+        q28: data.q28 || 0,
+        q29: data.q29 || 'boa',
+        q30: data.q30 || 0,
+        q31: data.q31 || 0,
+        q32: data.q32 || 0,
+        q33: data.q33 || 0,
+        q34: data.q34 || 0,
       };
+
+      console.log('Assessment data to save:', assessmentData);
 
       if (response?.id) {
         // Update existing response
+        console.log('Updating existing response with ID:', response.id);
+        
         const { data: updated, error } = await supabase
           .from('patient_assessments')
           .update(assessmentData)
@@ -172,9 +167,12 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
           throw error;
         }
 
+        console.log('Updated response:', updated);
         return updated as SessionPBATResponse;
       } else {
         // Create new response
+        console.log('Creating new response');
+        
         const { data: created, error } = await supabase
           .from('patient_assessments')
           .insert(assessmentData)
@@ -186,45 +184,18 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
           throw error;
         }
 
+        console.log('Created response:', created);
         return created as SessionPBATResponse;
       }
     },
-    onSuccess: () => {
+    onSuccess: (savedData) => {
+      console.log('PBAT save successful:', savedData);
       queryClient.invalidateQueries({ queryKey: [SESSION_PBAT_QUERY_KEY, patientId, recordId] });
       toast.success('Avaliação PBAT salva com sucesso');
     },
     onError: (error: Error) => {
       console.error('Error saving session PBAT response:', error);
-      toast.error('Erro ao salvar avaliação PBAT');
-    },
-  });
-
-  // Delete PBAT response for this session
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      if (!response?.id) {
-        throw new Error('No response to delete');
-      }
-
-      const { error } = await supabase
-        .from('patient_assessments')
-        .delete()
-        .eq('id', response.id);
-
-      if (error) {
-        console.error('Error deleting session PBAT response:', error);
-        throw error;
-      }
-
-      return response.id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [SESSION_PBAT_QUERY_KEY, patientId, recordId] });
-      toast.success('Avaliação PBAT removida com sucesso');
-    },
-    onError: (error: Error) => {
-      console.error('Error deleting session PBAT response:', error);
-      toast.error('Erro ao remover avaliação PBAT');
+      toast.error(`Erro ao salvar avaliação PBAT: ${error.message}`);
     },
   });
 
@@ -250,7 +221,6 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
 
   /**
    * Calculate Outcome score (questions 24-28)
-   * Score range: 0-100 (average of all outcome questions)
    */
   const calculateOutcomeScore = (pbatResponse?: SessionPBATResponse | null): number => {
     if (!pbatResponse) return 0;
@@ -270,7 +240,6 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
 
   /**
    * Calculate Vitality score (questions 30-34)
-   * Score range: 0-100 (average, with Q34 reverse scored)
    */
   const calculateVitalityScore = (pbatResponse?: SessionPBATResponse | null): number => {
     if (!pbatResponse) return 0;
@@ -278,7 +247,6 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
     let total = 0;
     let count = 0;
     
-    // Questions 30-33 are positive
     for (let i = 30; i <= 33; i++) {
       const value = pbatResponse[`q${i}` as keyof SessionPBATResponse];
       if (typeof value === 'number') {
@@ -294,37 +262,6 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
     }
     
     return count > 0 ? total / count : 0;
-  };
-
-  /**
-   * Get comprehensive statistics for the response
-   */
-  const getStatistics = (pbatResponse?: SessionPBATResponse | null): PBATStatistics => {
-    if (!pbatResponse) {
-      return {
-        pbat_score: 0,
-        outcome_score: 0,
-        vitality_score: 0,
-        health_status: '',
-        scores_by_category: {
-          pbat: 0,
-          outcome: 0,
-          vitality: 0,
-        },
-      };
-    }
-
-    return {
-      pbat_score: calculatePBATScore(pbatResponse),
-      outcome_score: calculateOutcomeScore(pbatResponse),
-      vitality_score: calculateVitalityScore(pbatResponse),
-      health_status: (pbatResponse.q29 as string) || '',
-      scores_by_category: {
-        pbat: calculatePBATScore(pbatResponse),
-        outcome: calculateOutcomeScore(pbatResponse),
-        vitality: calculateVitalityScore(pbatResponse),
-      },
-    };
   };
 
   /**
@@ -345,16 +282,11 @@ export const useSessionPBATResponses = (patientId: string, recordId: string) => 
     saveResponseAsync: saveMutation.mutateAsync,
     isSaving: saveMutation.isPending,
 
-    deleteResponse: deleteMutation.mutate,
-    deleteResponseAsync: deleteMutation.mutateAsync,
-    isDeleting: deleteMutation.isPending,
-
     // Utilities
     refetch,
     calculatePBATScore: () => calculatePBATScore(response),
     calculateOutcomeScore: () => calculateOutcomeScore(response),
     calculateVitalityScore: () => calculateVitalityScore(response),
-    getStatistics: () => getStatistics(response),
     hasResponse,
     
     // Current session scores
