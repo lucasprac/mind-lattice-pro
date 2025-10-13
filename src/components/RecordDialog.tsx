@@ -22,9 +22,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, X, Tag } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePatients, Patient } from "@/hooks/usePatients";
+import { useRecords } from "@/hooks/useRecords";
 
 interface RecordDialogProps {
   onRecordAdded?: () => void;
@@ -48,10 +48,10 @@ export const RecordDialog = ({ onRecordAdded, trigger, selectedPatient }: Record
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { patients } = usePatients();
+  const { createRecord, records } = useRecords(selectedPatient?.id);
   
   const [formData, setFormData] = useState({
     patient_id: selectedPatient?.id || "",
-    session_number: 1,
     description: "",
     keywords: [] as string[],
     observations: "",
@@ -62,7 +62,6 @@ export const RecordDialog = ({ onRecordAdded, trigger, selectedPatient }: Record
   const resetForm = () => {
     setFormData({
       patient_id: selectedPatient?.id || "",
-      session_number: 1,
       description: "",
       keywords: [],
       observations: "",
@@ -114,25 +113,24 @@ export const RecordDialog = ({ onRecordAdded, trigger, selectedPatient }: Record
     setLoading(true);
 
     try {
-      const { error } = await supabase.from("records").insert({
-        therapist_id: user.id,
+      // Calcular o próximo número de sessão
+      const patientRecords = records.filter(r => r.patient_id === formData.patient_id);
+      const nextSessionNumber = patientRecords.length + 1;
+      
+      const record = await createRecord({
         patient_id: formData.patient_id,
-        session_number: formData.session_number,
+        session_date: new Date().toISOString(),
+        session_number: nextSessionNumber,
         description: formData.description.trim(),
         keywords: formData.keywords,
-        observations: formData.observations.trim() || null,
+        observations: formData.observations.trim() || undefined,
       });
 
-      if (error) {
-        console.error("Erro ao criar registro:", error);
-        toast.error("Erro ao registrar consulta: " + error.message);
-        return;
+      if (record) {
+        resetForm();
+        setOpen(false);
+        onRecordAdded?.();
       }
-
-      toast.success("Consulta registrada com sucesso!");
-      resetForm();
-      setOpen(false);
-      onRecordAdded?.();
     } catch (error) {
       console.error("Erro inesperado:", error);
       toast.error("Erro inesperado ao registrar consulta");
@@ -165,40 +163,27 @@ export const RecordDialog = ({ onRecordAdded, trigger, selectedPatient }: Record
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="patient_id">Paciente *</Label>
-              <Select 
-                value={formData.patient_id} 
-                onValueChange={(value) => setFormData({ ...formData, patient_id: value })}
-                disabled={!!selectedPatient}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um paciente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients
-                    .filter(p => p.status === 'active')
-                    .map((patient) => (
-                      <SelectItem key={patient.id} value={patient.id}>
-                        {patient.full_name}
-                      </SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="session_number">Número da Sessão</Label>
-              <Input
-                id="session_number"
-                type="number"
-                min="1"
-                value={formData.session_number}
-                onChange={(e) => setFormData({ ...formData, session_number: parseInt(e.target.value) || 1 })}
-              />
-            </div>
+          <div>
+            <Label htmlFor="patient_id">Paciente *</Label>
+            <Select 
+              value={formData.patient_id} 
+              onValueChange={(value) => setFormData({ ...formData, patient_id: value })}
+              disabled={!!selectedPatient}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um paciente" />
+              </SelectTrigger>
+              <SelectContent>
+                {patients
+                  .filter(p => p.status === 'active')
+                  .map((patient) => (
+                    <SelectItem key={patient.id} value={patient.id}>
+                      {patient.full_name}
+                    </SelectItem>
+                  ))
+                }
+              </SelectContent>
+            </Select>
           </div>
           
           <div>
