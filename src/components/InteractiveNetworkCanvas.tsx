@@ -4,45 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { NetworkData } from '@/hooks/useSessionNetwork';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { 
   Plus, 
   Trash2, 
   Save,
-  Undo,
-  Redo,
   ZoomIn,
   ZoomOut,
   ArrowRight,
@@ -51,14 +19,12 @@ import {
   X,
   Link2,
   Edit,
-  Settings,
   AlertTriangle,
   Check,
   History,
-  Tag
+  Tag,
+  RefreshCw
 } from "lucide-react";
-import { toast } from "sonner";
-import { NetworkData } from '@/hooks/useSessionNetwork';
 
 interface NetworkNode {
   id: string;
@@ -73,7 +39,6 @@ interface NetworkNode {
 }
 
 type ConnectionType = 'maladaptive' | 'unchanged' | 'adaptive';
-type MarkerType = 'arrow' | 'line' | 'circle';
 
 interface NetworkConnection {
   id: string;
@@ -81,24 +46,12 @@ interface NetworkConnection {
   to: string;
   type: ConnectionType;
   strength: number; // 1-5
-  ambivalent: boolean;
-  startMarker: MarkerType;
-  endMarker: MarkerType;
   created_at: string;
-}
-
-interface HistoryEntry {
-  id: string;
-  timestamp: string;
-  action: 'add_node' | 'remove_node' | 'edit_node' | 'add_connection' | 'remove_connection' | 'edit_connection';
-  description: string;
-  sessionId: string;
-  sessionName: string;
 }
 
 interface InteractiveNetworkCanvasProps {
   networkData: NetworkData;
-  onSave: (data: NetworkData, hasUnsavedChanges?: boolean) => Promise<boolean>;
+  onSave: (data: NetworkData) => Promise<boolean>;
   readOnly?: boolean;
   currentSessionId: string;
   currentSessionName: string;
@@ -116,14 +69,11 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
   const canvasRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes] = useState<NetworkNode[]>([]);
   const [connections, setConnections] = useState<NetworkConnection[]>([]);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // UI State
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
   const [draggedNode, setDraggedNode] = useState<string | null>(null);
-  const [resizingNode, setResizingNode] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -135,24 +85,12 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [showConnectionMenu, setShowConnectionMenu] = useState<string | null>(null);
   
-  // Dialogs
+  // Text editing
   const [editingNodeText, setEditingNodeText] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
-  const [editingConnection, setEditingConnection] = useState<NetworkConnection | null>(null);
-  const [showConnectionDialog, setShowConnectionDialog] = useState(false);
-  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{type: 'node' | 'connection', id: string, name: string} | null>(null);
-  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   
   // New node form
   const [newNodeText, setNewNodeText] = useState('');
-
-  // Marker options for connections
-  const markerOptions: { value: MarkerType; label: string; icon: React.ReactNode }[] = [
-    { value: 'line', label: 'Traço', icon: <Minus className="h-4 w-4" /> },
-    { value: 'arrow', label: 'Seta', icon: <ArrowRight className="h-4 w-4" /> },
-    { value: 'circle', label: 'Bola', icon: <Circle className="h-4 w-4" /> },
-  ];
 
   // Initialize data from props
   useEffect(() => {
@@ -174,9 +112,6 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
       to: connection.target_node_id,
       type: (connection.type as ConnectionType) || 'unchanged',
       strength: 3,
-      ambivalent: false,
-      startMarker: 'line' as MarkerType,
-      endMarker: 'arrow' as MarkerType,
       created_at: connection.created_at || new Date().toISOString()
     }));
 
@@ -194,32 +129,12 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
     setHasUnsavedChanges(true);
   }, []);
 
-  const addToHistory = useCallback((action: HistoryEntry['action'], description: string) => {
-    const entry: HistoryEntry = {
-      id: `hist-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      action,
-      description,
-      sessionId: currentSessionId,
-      sessionName: currentSessionName
-    };
-    
-    setHistory(prev => [entry, ...prev.slice(0, 49)]); // Keep only last 50 entries
-    markAsChanged();
-  }, [currentSessionId, currentSessionName, markAsChanged]);
-
   const addNode = () => {
     if (!newNodeText.trim()) {
       toast.error("Digite o texto do processo");
       return;
     }
 
-    // Check for duplicate names
-    if (nodes.some(node => node.text.toLowerCase().trim() === newNodeText.toLowerCase().trim())) {
-      toast.error("Já existe um processo com este nome. Escolha um nome diferente.");
-      return;
-    }
-    
     const node: NetworkNode = {
       id: `node-${Date.now()}`,
       x: 100 + Math.random() * 200,
@@ -234,40 +149,23 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
 
     setNodes(prev => [...prev, node]);
     setNewNodeText('');
-    addToHistory('add_node', `Processo adicionado: "${node.text}"`);
+    markAsChanged();
     toast.success("Processo adicionado");
   };
 
   const removeNode = (nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return;
-
     setNodes(prev => prev.filter(n => n.id !== nodeId));
     setConnections(prev => prev.filter(c => c.from !== nodeId && c.to !== nodeId));
     setSelectedNode(null);
-    
-    addToHistory('remove_node', `Processo removido: "${node.text}"`);
+    markAsChanged();
     toast.success("Processo removido");
   };
 
   const updateNodeText = (nodeId: string, newText: string) => {
-    const oldNode = nodes.find(n => n.id === nodeId);
-    if (!oldNode) return;
-
-    // Check for duplicate names (excluding the current node)
-    if (nodes.some(node => 
-      node.id !== nodeId && 
-      node.text.toLowerCase().trim() === newText.toLowerCase().trim()
-    )) {
-      toast.error("Já existe um processo com este nome. Escolha um nome diferente.");
-      return false;
-    }
-
     setNodes(prev => prev.map(n => 
       n.id === nodeId ? { ...n, text: newText.trim() } : n
     ));
-    
-    addToHistory('edit_node', `Processo editado: "${oldNode.text}" → "${newText.trim()}"`);
+    markAsChanged();
     toast.success("Texto do processo atualizado");
     return true;
   };
@@ -295,34 +193,17 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
         return;
       }
 
-      // Set default markers based on connection type
-      let defaultStartMarker: MarkerType = 'line';
-      let defaultEndMarker: MarkerType = 'arrow';
-      
-      if (connectionMode === 'adaptive') {
-        defaultEndMarker = 'circle';
-      } else if (connectionMode === 'unchanged') {
-        defaultEndMarker = 'line';
-      }
-
       const newConnection: NetworkConnection = {
         id: `conn-${Date.now()}`,
         from: connectionStart,
         to: endNodeId,
         type: connectionMode,
         strength: 3,
-        ambivalent: false,
-        startMarker: defaultStartMarker,
-        endMarker: defaultEndMarker,
         created_at: new Date().toISOString()
       };
       
       setConnections(prev => [...prev, newConnection]);
-      
-      const fromNode = nodes.find(n => n.id === connectionStart);
-      const toNode = nodes.find(n => n.id === endNodeId);
-      
-      addToHistory('add_connection', `Conexão criada: "${fromNode?.text}" → "${toNode?.text}" (${connectionMode})`);
+      markAsChanged();
       toast.success("Conexão criada");
     }
     
@@ -330,66 +211,104 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
     setConnectionStart(null);
   };
 
-  const removeConnection = (connectionId: string) => {
-    const connection = connections.find(c => c.id === connectionId);
-    if (!connection) return;
+  const handleMouseDown = (e: React.MouseEvent, nodeId: string) => {
+    if (readOnly) return;
+    
+    if (connectionMode && connectionStart) {
+      completeConnection(nodeId);
+      return;
+    }
 
-    setConnections(prev => prev.filter(c => c.id !== connectionId));
-    setSelectedConnection(null);
-    
-    const fromNode = nodes.find(n => n.id === connection.from);
-    const toNode = nodes.find(n => n.id === connection.to);
-    
-    addToHistory('remove_connection', `Conexão removida: "${fromNode?.text}" → "${toNode?.text}"`);
-    toast.success("Conexão removida");
+    e.stopPropagation();
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    setDraggedNode(nodeId);
+    setDragOffset({
+      x: (e.clientX - rect.left - pan.x) / scale - node.x,
+      y: (e.clientY - rect.top - pan.y) / scale - node.y,
+    });
+    setSelectedNode(nodeId);
   };
 
-  const updateConnection = (connectionId: string, updates: Partial<NetworkConnection>) => {
-    const oldConnection = connections.find(c => c.id === connectionId);
-    if (!oldConnection) return;
-
-    // If ambivalent is selected, automatically set both markers as arrow
-    if (updates.ambivalent) {
-      updates.startMarker = 'arrow';
-      updates.endMarker = 'arrow';
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0 && !draggedNode) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
-    
-    setConnections(prev => prev.map(c => 
-      c.id === connectionId ? { ...c, ...updates } : c
-    ));
-    
-    addToHistory('edit_connection', `Conexão editada entre processos`);
-    toast.success("Conexão atualizada");
+    setShowConnectionMenu(null);
+    setSelectedNode(null);
   };
 
-  const showDeleteConfirmation = (type: 'node' | 'connection', id: string) => {
-    if (type === 'node') {
-      const node = nodes.find(n => n.id === id);
-      if (node) {
-        setItemToDelete({type, id, name: node.text});
-        setDeleteConfirmDialog(true);
-      }
-    } else {
-      const connection = connections.find(c => c.id === id);
-      if (connection) {
-        const fromNode = nodes.find(n => n.id === connection.from);
-        const toNode = nodes.find(n => n.id === connection.to);
-        setItemToDelete({type, id, name: `${fromNode?.text} → ${toNode?.text}`});
-        setDeleteConfirmDialog(true);
-      }
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (readOnly) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    if (isPanning) {
+      setPan({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      });
+      return;
+    }
+
+    if (draggedNode) {
+      const x = (e.clientX - rect.left - pan.x) / scale - dragOffset.x;
+      const y = (e.clientY - rect.top - pan.y) / scale - dragOffset.y;
+
+      setNodes(prev => prev.map(node => 
+        node.id === draggedNode 
+          ? { ...node, x: Math.max(0, x), y: Math.max(0, y) }
+          : node
+      ));
     }
   };
 
-  const confirmDelete = () => {
-    if (itemToDelete) {
-      if (itemToDelete.type === 'node') {
-        removeNode(itemToDelete.id);
-      } else {
-        removeConnection(itemToDelete.id);
-      }
+  const handleMouseUp = () => {
+    if (draggedNode) {
+      markAsChanged();
     }
-    setDeleteConfirmDialog(false);
-    setItemToDelete(null);
+    setDraggedNode(null);
+    setIsPanning(false);
+  };
+
+  const handleSave = async () => {
+    try {
+      const networkData: NetworkData = {
+        nodes: nodes.map(node => ({
+          id: node.id,
+          text: node.text,
+          x: node.x,
+          y: node.y,
+          type: 'process',
+          description: '',
+          sessionId: node.sessionId,
+          sessionName: node.sessionName,
+          created_at: node.created_at
+        })),
+        connections: connections.map(connection => ({
+          id: connection.id,
+          source_node_id: connection.from,
+          target_node_id: connection.to,
+          type: connection.type,
+          description: `Strength: ${connection.strength}`,
+          created_at: connection.created_at
+        }))
+      };
+      
+      const success = await onSave(networkData);
+      if (success) {
+        setHasUnsavedChanges(false);
+      }
+    } catch (error) {
+      console.error('Error saving network:', error);
+      toast.error('Erro ao salvar rede');
+    }
   };
 
   const startEditingNodeText = (nodeId: string) => {
@@ -417,133 +336,6 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
     setEditingText('');
   };
 
-  const handleMouseDown = (e: React.MouseEvent, nodeId: string) => {
-    if (readOnly) return;
-    
-    if (connectionMode && connectionStart) {
-      completeConnection(nodeId);
-      return;
-    }
-
-    e.stopPropagation();
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return;
-
-    setDraggedNode(nodeId);
-    setDragOffset({
-      x: (e.clientX - rect.left - pan.x) / scale - node.x,
-      y: (e.clientY - rect.top - pan.y) / scale - node.y,
-    });
-    setSelectedNode(nodeId);
-    setSelectedConnection(null);
-  };
-
-  const handleResizeStart = (e: React.MouseEvent, nodeId: string) => {
-    if (readOnly) return;
-    e.stopPropagation();
-    setResizingNode(nodeId);
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0 && !draggedNode && !resizingNode) {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-    }
-    setShowConnectionMenu(null);
-    setSelectedNode(null);
-    setSelectedConnection(null);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (readOnly) return;
-
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    if (isPanning) {
-      setPan({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
-      });
-      return;
-    }
-
-    if (draggedNode) {
-      const x = (e.clientX - rect.left - pan.x) / scale - dragOffset.x;
-      const y = (e.clientY - rect.top - pan.y) / scale - dragOffset.y;
-
-      setNodes(prev => prev.map(node => 
-        node.id === draggedNode 
-          ? { ...node, x: Math.max(0, x), y: Math.max(0, y) }
-          : node
-      ));
-    }
-
-    if (resizingNode) {
-      const node = nodes.find(n => n.id === resizingNode);
-      if (!node) return;
-
-      const mouseX = (e.clientX - rect.left - pan.x) / scale;
-      const mouseY = (e.clientY - rect.top - pan.y) / scale;
-
-      const newWidth = Math.max(150, mouseX - node.x);
-      const newHeight = Math.max(60, mouseY - node.y);
-
-      setNodes(prev => prev.map(n => 
-        n.id === resizingNode 
-          ? { ...n, width: newWidth, height: newHeight }
-          : n
-      ));
-    }
-  };
-
-  const handleMouseUp = () => {
-    setDraggedNode(null);
-    setResizingNode(null);
-    setIsPanning(false);
-  };
-
-  const handleSave = async () => {
-    const networkData: NetworkData = {
-      nodes: nodes.map(node => ({
-        id: node.id,
-        text: node.text,
-        x: node.x,
-        y: node.y,
-        type: 'process',
-        description: '',
-        sessionId: node.sessionId,
-        sessionName: node.sessionName,
-        created_at: node.created_at
-      })),
-      connections: connections.map(connection => ({
-        id: connection.id,
-        source_node_id: connection.from,
-        target_node_id: connection.to,
-        type: connection.type,
-        description: `Strength: ${connection.strength}`,
-        created_at: connection.created_at
-      }))
-    };
-    
-    const success = await onSave(networkData, hasUnsavedChanges);
-    if (success) {
-      setHasUnsavedChanges(false);
-    }
-  };
-
-  const handleConnectionClick = (connection: NetworkConnection, e: React.MouseEvent) => {
-    if (readOnly) return;
-    e.stopPropagation();
-    setSelectedConnection(connection.id);
-    setSelectedNode(null);
-    setEditingConnection({ ...connection });
-    setShowConnectionDialog(true);
-  };
-
   const getConnectionPath = (connection: NetworkConnection) => {
     const fromNode = nodes.find(n => n.id === connection.from);
     const toNode = nodes.find(n => n.id === connection.to);
@@ -555,18 +347,7 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
     const toCenterX = toNode.x + toNode.width / 2;
     const toCenterY = toNode.y + toNode.height / 2;
 
-    const dx = toCenterX - fromCenterX;
-    const dy = toCenterY - fromCenterY;
-    const angle = Math.atan2(dy, dx);
-
-    const fromEdgeX = fromCenterX + Math.cos(angle) * (fromNode.width / 2);
-    const fromEdgeY = fromCenterY + Math.sin(angle) * (fromNode.height / 2);
-
-    const arrowOffset = 15;
-    const toEdgeX = toCenterX - Math.cos(angle) * (toNode.width / 2 + arrowOffset);
-    const toEdgeY = toCenterY - Math.sin(angle) * (toNode.height / 2 + arrowOffset);
-
-    return `M ${fromEdgeX} ${fromEdgeY} L ${toEdgeX} ${toEdgeY}`;
+    return `M ${fromCenterX} ${fromCenterY} L ${toCenterX} ${toCenterY}`;
   };
 
   const getConnectionColor = (type: ConnectionType) => {
@@ -577,34 +358,21 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
     }
   };
 
-  const getMarkerEnd = (connection: NetworkConnection) => {
-    if (connection.endMarker === 'line') return '';
-    return `url(#${connection.endMarker}-${connection.type}-end)`;
-  };
-
-  const getMarkerStart = (connection: NetworkConnection) => {
-    if (connection.startMarker === 'line') return '';
-    return `url(#${connection.startMarker}-${connection.type}-start)`;
-  };
-
-  const getStrokeWidth = (strength: number) => {
-    return 1.5 + (strength * 0.5);
-  };
-
   const getSessionColor = (sessionId: string) => {
-    // Generate a consistent color based on session ID
+    if (sessionId === currentSessionId) {
+      return 'bg-blue-100 border-blue-400'; // Current session
+    }
+    
     const hash = sessionId.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
     
     const colors = [
-      'bg-blue-100 border-blue-400',
       'bg-green-100 border-green-400',
       'bg-purple-100 border-purple-400',
       'bg-orange-100 border-orange-400',
-      'bg-pink-100 border-pink-400',
-      'bg-indigo-100 border-indigo-400'
+      'bg-pink-100 border-pink-400'
     ];
     
     return colors[Math.abs(hash) % colors.length];
@@ -646,8 +414,8 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                 <Button variant="outline" size="sm" onClick={() => setScale(Math.max(scale * 0.8, 0.3))}>
                   <ZoomOut className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setShowHistoryDialog(true)}>
-                  <History className="h-4 w-4" />
+                <Button variant="outline" size="sm" onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }}>
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
               
@@ -665,7 +433,11 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">Processos: {nodes.length}</Badge>
                 <Badge variant="outline">Conexões: {connections.length}</Badge>
-                {hasUnsavedChanges && <Badge variant="destructive">Não salvo</Badge>}
+                {hasUnsavedChanges ? (
+                  <Badge variant="destructive">Não salvo</Badge>
+                ) : (
+                  <Badge className="bg-green-600">Salvo</Badge>
+                )}
               </div>
               
               {connectionMode && (
@@ -692,238 +464,6 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
           </div>
         </Card>
       )}
-
-      {/* Connection Edit Dialog */}
-      <Dialog open={showConnectionDialog} onOpenChange={setShowConnectionDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Editar Conexão
-            </DialogTitle>
-            <DialogDescription>
-              Ajuste intensidade, marcadores e propriedades da conexão.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {editingConnection && (
-            <div className="space-y-6">
-              <div>
-                <Label className="text-sm font-medium mb-2 block">
-                  Intensidade: {editingConnection.strength}
-                </Label>
-                <Slider
-                  value={[editingConnection.strength]}
-                  onValueChange={([value]) => 
-                    setEditingConnection({ ...editingConnection, strength: value })
-                  }
-                  min={1}
-                  max={5}
-                  step={1}
-                  className="mt-2"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>Fraca (1)</span>
-                  <span>Forte (5)</span>
-                </div>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Tipo de Conexão</Label>
-                <Select 
-                  value={editingConnection.type} 
-                  onValueChange={(value) => 
-                    setEditingConnection({ ...editingConnection, type: value as ConnectionType })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="maladaptive">Maladaptativa</SelectItem>
-                    <SelectItem value="unchanged">Sem Mudança</SelectItem>
-                    <SelectItem value="adaptive">Adaptativa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="ambivalent"
-                  checked={editingConnection.ambivalent}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setEditingConnection({ 
-                        ...editingConnection, 
-                        ambivalent: checked as boolean,
-                        startMarker: 'arrow',
-                        endMarker: 'arrow'
-                      });
-                    } else {
-                      setEditingConnection({ 
-                        ...editingConnection, 
-                        ambivalent: checked as boolean
-                      });
-                    }
-                  }}
-                />
-                <Label htmlFor="ambivalent" className="text-sm">
-                  Ambivalente (setas em ambos os lados)
-                </Label>
-              </div>
-              
-              {!editingConnection.ambivalent && (
-                <>
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Marcador Inicial</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {markerOptions.map((option) => (
-                        <Button
-                          key={`start-${option.value}`}
-                          variant={editingConnection.startMarker === option.value ? "default" : "outline"}
-                          size="sm"
-                          className="p-3 h-auto flex flex-col gap-1"
-                          onClick={() => setEditingConnection({ 
-                            ...editingConnection, 
-                            startMarker: option.value 
-                          })}
-                        >
-                          {option.icon}
-                          <span className="text-xs">{option.label}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Marcador Final</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {markerOptions.map((option) => (
-                        <Button
-                          key={`end-${option.value}`}
-                          variant={editingConnection.endMarker === option.value ? "default" : "outline"}
-                          size="sm"
-                          className="p-3 h-auto flex flex-col gap-1"
-                          onClick={() => setEditingConnection({ 
-                            ...editingConnection, 
-                            endMarker: option.value 
-                          })}
-                        >
-                          {option.icon}
-                          <span className="text-xs">{option.label}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          
-          <DialogFooter className="gap-2">
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                if (editingConnection) {
-                  showDeleteConfirmation('connection', editingConnection.id);
-                  setShowConnectionDialog(false);
-                }
-              }}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Excluir
-            </Button>
-            
-            <Button variant="outline" size="sm" onClick={() => setShowConnectionDialog(false)}>
-              Cancelar
-            </Button>
-            <Button size="sm" onClick={() => {
-                if (editingConnection) {
-                  updateConnection(editingConnection.id, editingConnection);
-                  setShowConnectionDialog(false);
-                }
-              }}>
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* History Dialog */}
-      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Histórico da Rede
-            </DialogTitle>
-            <DialogDescription>
-              Últimas alterações feitas na rede de processos.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {history.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">Nenhuma alteração registrada ainda.</p>
-            ) : (
-              history.map((entry) => (
-                <div key={entry.id} className="p-3 bg-muted rounded-lg">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-sm font-medium">{entry.description}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {entry.sessionName}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(entry.timestamp).toLocaleString('pt-BR')}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={deleteConfirmDialog} onOpenChange={setDeleteConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              Confirmar Exclusão
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <div className="text-base">
-                Tem certeza que deseja excluir este item?
-              </div>
-              {itemToDelete && (
-                <div className="p-3 bg-gray-50 rounded-lg border">
-                  <span className="font-medium text-gray-900">
-                    {itemToDelete.type === 'node' ? 'Processo' : 'Conexão'}:
-                  </span>
-                  <div className="text-sm text-gray-700 mt-1 italic">
-                    "{itemToDelete.name}"
-                  </div>
-                </div>
-              )}
-              <div className="text-sm text-red-600">
-                ⚠️ Esta ação não pode ser desfeita.
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDelete} 
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Confirmar Exclusão
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Canvas */}
       <Card className="relative overflow-hidden bg-gray-50" style={{ height: '700px' }}>
@@ -957,72 +497,17 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
               }}
             >
               <defs>
-                {/* Generate markers for all combinations */}
-                {['maladaptive', 'adaptive', 'unchanged'].map(type => (
-                  <g key={type}>
-                    {/* Arrow markers */}
-                    <marker
-                      id={`arrow-${type}-end`}
-                      markerWidth="10"
-                      markerHeight="10"
-                      refX="9"
-                      refY="3"
-                      orient="auto"
-                      markerUnits="strokeWidth"
-                    >
-                      <path 
-                        d="M0,0 L0,6 L9,3 z" 
-                        fill={type === 'maladaptive' ? '#ef4444' : type === 'adaptive' ? '#22c55e' : '#9ca3af'} 
-                      />
-                    </marker>
-                    <marker
-                      id={`arrow-${type}-start`}
-                      markerWidth="10"
-                      markerHeight="10"
-                      refX="1"
-                      refY="3"
-                      orient="auto"
-                      markerUnits="strokeWidth"
-                    >
-                      <path 
-                        d="M9,0 L9,6 L0,3 z" 
-                        fill={type === 'maladaptive' ? '#ef4444' : type === 'adaptive' ? '#22c55e' : '#9ca3af'} 
-                      />
-                    </marker>
-                    
-                    {/* Circle markers */}
-                    <marker
-                      id={`circle-${type}-end`}
-                      markerWidth="10"
-                      markerHeight="10"
-                      refX="5"
-                      refY="5"
-                      orient="auto"
-                    >
-                      <circle 
-                        cx="5" 
-                        cy="5" 
-                        r="4" 
-                        fill={type === 'maladaptive' ? '#ef4444' : type === 'adaptive' ? '#22c55e' : '#9ca3af'} 
-                      />
-                    </marker>
-                    <marker
-                      id={`circle-${type}-start`}
-                      markerWidth="10"
-                      markerHeight="10"
-                      refX="5"
-                      refY="5"
-                      orient="auto"
-                    >
-                      <circle 
-                        cx="5" 
-                        cy="5" 
-                        r="4" 
-                        fill={type === 'maladaptive' ? '#ef4444' : type === 'adaptive' ? '#22c55e' : '#9ca3af'} 
-                      />
-                    </marker>
-                  </g>
-                ))}
+                <marker
+                  id="arrow-end"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="3"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M0,0 L0,6 L9,3 z" fill="#6b7280" />
+                </marker>
               </defs>
               
               {connections.map((connection) => {
@@ -1030,51 +515,14 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                 if (!path) return null;
                 
                 return (
-                  <g key={connection.id}>
-                    <path
-                      d={path}
-                      className={`${getConnectionColor(connection.type)} ${selectedConnection === connection.id ? 'stroke-blue-600' : ''}`}
-                      strokeWidth={getStrokeWidth(connection.strength)}
-                      fill="none"
-                      markerEnd={getMarkerEnd(connection)}
-                      markerStart={getMarkerStart(connection)}
-                      style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-                      onClick={(e) => handleConnectionClick(connection, e)}
-                    />
-                    
-                    {/* Strength label */}
-                    {connection.strength > 0 && (
-                      <g>
-                        <circle
-                          cx={(nodes.find(n => n.id === connection.from)?.x || 0) + 
-                              (nodes.find(n => n.id === connection.to)?.x || 0) + 200} 
-                          cy={(nodes.find(n => n.id === connection.from)?.y || 0) + 
-                              (nodes.find(n => n.id === connection.to)?.y || 0) + 80}
-                          r="12"
-                          fill="white"
-                          stroke={connection.type === 'maladaptive' ? '#ef4444' : 
-                                 connection.type === 'adaptive' ? '#22c55e' : '#9ca3af'}
-                          strokeWidth="2"
-                          style={{ pointerEvents: 'none' }}
-                        />
-                        <text
-                          x={(nodes.find(n => n.id === connection.from)?.x || 0) + 
-                             (nodes.find(n => n.id === connection.to)?.x || 0) + 200}
-                          y={(nodes.find(n => n.id === connection.from)?.y || 0) + 
-                             (nodes.find(n => n.id === connection.to)?.y || 0) + 85}
-                          className="text-xs font-bold"
-                          textAnchor="middle"
-                          style={{ 
-                            pointerEvents: 'none',
-                            fill: connection.type === 'maladaptive' ? '#ef4444' : 
-                                  connection.type === 'adaptive' ? '#22c55e' : '#9ca3af'
-                          }}
-                        >
-                          {connection.strength}
-                        </text>
-                      </g>
-                    )}
-                  </g>
+                  <path
+                    key={connection.id}
+                    d={path}
+                    className={getConnectionColor(connection.type)}
+                    strokeWidth={2 + (connection.strength * 0.5)}
+                    fill="none"
+                    markerEnd="url(#arrow-end)"
+                  />
                 );
               })}
             </svg>
@@ -1106,24 +554,12 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                   <div className="flex-1 flex flex-col justify-between min-h-0">
                     {/* Session marker */}
                     <div className="flex justify-between items-start mb-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1">
-                              <Tag className="h-3 w-3" />
-                              <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                                {node.sessionName}
-                              </span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Criado na sessão: {node.sessionName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(node.created_at).toLocaleDateString('pt-BR')}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                          {node.sessionName}
+                        </span>
+                      </div>
                     </div>
                     
                     {/* Text content */}
@@ -1163,63 +599,42 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                     {/* Action buttons */}
                     {!readOnly && !isEditing && (
                       <div className="flex justify-end gap-1">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEditingNodeText(node.id);
-                                }}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Editar Texto</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditingNodeText(node.id);
+                          }}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
                         
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowConnectionMenu(showConnectionMenu === node.id ? null : node.id);
-                                }}
-                              >
-                                <Link2 className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Criar Conexão</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowConnectionMenu(showConnectionMenu === node.id ? null : node.id);
+                          }}
+                        >
+                          <Link2 className="h-3 w-3" />
+                        </Button>
                         
                         {isSelected && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    showDeleteConfirmation('node', node.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Excluir Processo</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeNode(node.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         )}
                       </div>
                     )}
@@ -1259,15 +674,6 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                         Adaptativa
                       </Button>
                     </div>
-                  )}
-                  
-                  {/* Resize handle */}
-                  {isSelected && !readOnly && (
-                    <div
-                      className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 rounded-tl cursor-nwse-resize opacity-75 hover:opacity-100"
-                      onMouseDown={(e) => handleResizeStart(e, node.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
                   )}
                 </div>
               );
