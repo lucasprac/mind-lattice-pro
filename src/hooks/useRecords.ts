@@ -9,7 +9,6 @@ export interface Record {
   therapist_id: string;
   session_date: string;
   session_number?: number;
-  name: string;
   description: string;
   keywords: string[];
   observations?: string;
@@ -39,7 +38,7 @@ export const useRecords = (patientId?: string) => {
       setError(null);
       
       let query = supabase
-        .from("therapy_records")
+        .from("records")
         .select(`
           *,
           patient:patients(
@@ -92,9 +91,9 @@ export const useRecords = (patientId?: string) => {
         // Continue anyway, as assessments might not exist
       }
 
-      // Delete the therapy record
+      // Delete the record
       const { error } = await supabase
-        .from("therapy_records")
+        .from("records")
         .delete()
         .eq("id", recordId)
         .eq("therapist_id", user.id);
@@ -124,7 +123,7 @@ export const useRecords = (patientId?: string) => {
 
     try {
       const { data, error } = await supabase
-        .from("therapy_records")
+        .from("records")
         .update(updates)
         .eq("id", recordId)
         .eq("therapist_id", user.id)
@@ -151,6 +150,45 @@ export const useRecords = (patientId?: string) => {
       console.error("Erro inesperado ao atualizar:", err);
       toast.error("Erro inesperado ao atualizar registro");
       return false;
+    }
+  };
+
+  const createRecord = async (recordData: Omit<Record, 'id' | 'therapist_id' | 'created_at' | 'updated_at'>) => {
+    if (!user?.id) {
+      toast.error("Usuário não autenticado");
+      return null;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("records")
+        .insert({
+          ...recordData,
+          therapist_id: user.id
+        })
+        .select(`
+          *,
+          patient:patients(
+            id,
+            full_name
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error("Erro ao criar registro:", error);
+        toast.error("Erro ao criar registro");
+        return null;
+      }
+
+      toast.success("Registro criado com sucesso");
+      // Add record to local state
+      setRecords(prev => [data, ...prev]);
+      return data;
+    } catch (err) {
+      console.error("Erro inesperado ao criar registro:", err);
+      toast.error("Erro inesperado ao criar registro");
+      return null;
     }
   };
 
@@ -224,6 +262,7 @@ export const useRecords = (patientId?: string) => {
     loading,
     error,
     fetchRecords,
+    createRecord,
     deleteRecord,
     updateRecord,
     searchRecords,
