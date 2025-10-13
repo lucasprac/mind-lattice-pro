@@ -38,6 +38,7 @@ export const useSessionNetwork = (patientId: string, recordId?: string) => {
     connections: []
   });
   const [filteredBySession, setFilteredBySession] = useState(false);
+  const [networkId, setNetworkId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,12 +90,14 @@ export const useSessionNetwork = (patientId: string, recordId?: string) => {
         network = createdNetwork;
       }
 
+      setNetworkId(network.id);
+
       // Carrega nodes com informação de sessão
       const { data: nodes, error: nodesError } = await supabase
         .from('network_nodes')
         .select(`
           *,
-          session:session_id(id, name)
+          session:therapy_records(id, name)
         `)
         .eq('network_id', network.id);
 
@@ -105,7 +108,7 @@ export const useSessionNetwork = (patientId: string, recordId?: string) => {
         .from('network_connections')
         .select(`
           *,
-          session:session_id(id, name)
+          session:therapy_records(id, name)
         `)
         .eq('network_id', network.id);
 
@@ -170,47 +173,51 @@ export const useSessionNetwork = (patientId: string, recordId?: string) => {
   }, [allNetworkData, filteredBySession, recordId]);
 
   // Salva mudanças na rede geral
-  const saveNetwork = useCallback(async (updatedData: NetworkData) => {
-    if (!patientId || !user) {
-      toast.error('Usuário não autenticado');
+  const saveNetwork = useCallback(async (updatedData: NetworkData, hasUnsavedChanges?: boolean) => {
+    if (!patientId || !user || !networkId) {
+      toast.error('Erro: dados da rede não carregados');
       return false;
     }
 
     try {
-      // Busca a rede geral
-      const { data: network, error: networkError } = await supabase
-        .from('patient_networks')
-        .select('*')
-        .eq('patient_id', patientId)
-        .eq('therapist_id', user.id)
-        .eq('is_general', true)
-        .single();
+      console.log('Saving network data:', updatedData);
 
-      if (networkError) {
-        throw networkError;
+      // Quando filtrado por sessão, precisamos mesclar os dados
+      let finalData = updatedData;
+      
+      if (filteredBySession && recordId) {
+        // Remove os dados da sessão atual dos dados gerais
+        const otherSessionNodes = allNetworkData.nodes.filter(node => node.sessionId !== recordId);
+        const otherSessionConnections = allNetworkData.connections.filter(connection => connection.sessionId !== recordId);
+        
+        // Adiciona os novos dados da sessão atual
+        finalData = {
+          nodes: [...otherSessionNodes, ...updatedData.nodes],
+          connections: [...otherSessionConnections, ...updatedData.connections]
+        };
       }
 
-      // Remove todos os nodes e connections existentes
-      await supabase
-        .from('network_nodes')
-        .delete()
-        .eq('network_id', network.id);
-
+      // Remove todos os nodes e connections existentes da rede
       await supabase
         .from('network_connections')
         .delete()
-        .eq('network_id', network.id);
+        .eq('network_id', networkId);
+
+      await supabase
+        .from('network_nodes')
+        .delete()
+        .eq('network_id', networkId);
 
       // Insere os novos nodes
-      if (updatedData.nodes.length > 0) {
-        const nodesToInsert = updatedData.nodes.map(node => ({
-          network_id: network.id,
+      if (finalData.nodes.length > 0) {
+        const nodesToInsert = finalData.nodes.map(node => ({
+          network_id: networkId,
           name: node.text,
           x: node.x,
           y: node.y,
           type: 'process',
-          description: node.description,
-          session_id: recordId || null
+          description: node.description || '',
+          session_id: node.sessionId || recordId || null
         }));
 
         const { error: nodesError } = await supabase
@@ -221,14 +228,14 @@ export const useSessionNetwork = (patientId: string, recordId?: string) => {
       }
 
       // Insere as novas connections
-      if (updatedData.connections.length > 0) {
-        const connectionsToInsert = updatedData.connections.map(connection => ({
-          network_id: network.id,
+      if (finalData.connections.length > 0) {
+        const connectionsToInsert = finalData.connections.map(connection => ({
+          network_id: networkId,
           source_node_id: connection.source_node_id,
           target_node_id: connection.target_node_id,
           type: connection.type,
-          description: connection.description,
-          session_id: recordId || null
+          description: connection.description || '',
+          session_id: connection.sessionId || recordId || null
         }));
 
         const { error: connectionsError } = await supabase
@@ -248,7 +255,7 @@ export const useSessionNetwork = (patientId: string, recordId?: string) => {
       toast.error('Erro ao salvar rede');
       return false;
     }
-  }, [patientId, recordId, user, loadNetwork]);
+  }, [patientId, recordId, user, networkId, loadNetwork, allNetworkData, filteredBySession]);
 
   // Toggle para filtrar por sessão
   const toggleSessionFilter = useCallback(() => {
