@@ -115,7 +115,7 @@ export const useRecords = (patientId?: string) => {
     }
   };
 
-  const updateRecord = async (recordId: string, updates: Partial<Record>) => {
+  const updateRecord = async (recordId: string, updates: Partial<Omit<Record, 'id' | 'therapist_id' | 'created_at' | 'updated_at' | 'patient'>>) => {
     if (!user?.id) {
       toast.error("Usuário não autenticado");
       return false;
@@ -153,7 +153,14 @@ export const useRecords = (patientId?: string) => {
     }
   };
 
-  const createRecord = async (recordData: Omit<Record, 'id' | 'therapist_id' | 'created_at' | 'updated_at'>) => {
+  const createRecord = async (recordData: {
+    patient_id: string;
+    session_date: string;
+    session_number?: number;
+    description: string;
+    keywords: string[];
+    observations?: string;
+  }) => {
     if (!user?.id) {
       toast.error("Usuário não autenticado");
       return null;
