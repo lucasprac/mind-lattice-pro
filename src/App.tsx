@@ -153,6 +153,16 @@ const App = () => {
                     } 
                   />
                   
+                  {/* Prontuário do paciente */}
+                  <Route 
+                    path="/patients/:patientId/records" 
+                    element={
+                      <ProtectedPageWrapper>
+                        <Records />
+                      </ProtectedPageWrapper>
+                    } 
+                  />
+                  
                   {/* Sessões */}
                   <Route 
                     path="/patients/:patientId/session/new" 
