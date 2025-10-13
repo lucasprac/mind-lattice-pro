@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Network as NetworkIcon, RefreshCw, ArrowRight, Filter, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Network as NetworkIcon, ArrowRight, AlertTriangle } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
 import { useSessionNetwork } from "@/hooks/useSessionNetwork";
@@ -28,15 +28,9 @@ const SessionNetwork = () => {
   
   const { 
     networkData, 
-    allNetworkData, 
-    filteredBySession, 
     loading, 
-    saveNetwork, 
-    toggleSessionFilter 
-  } = useSessionNetwork(
-    patientId || "",
-    recordId
-  );
+    saveNetwork
+  } = useSessionNetwork(patientId || "");
   
   // State for unsaved changes warning
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -73,8 +67,6 @@ const SessionNetwork = () => {
 
   // Save and then navigate
   const saveAndNavigate = async () => {
-    // Trigger save - the InteractiveNetworkCanvas will handle it
-    // For now, just navigate
     if (pendingNavigation) {
       navigate(pendingNavigation);
     }
@@ -96,15 +88,6 @@ const SessionNetwork = () => {
       </div>
     );
   }
-
-  const handleToggleFilter = () => {
-    toggleSessionFilter();
-    toast.info(
-      !filteredBySession 
-        ? "Visualizando apenas processos desta sessão" 
-        : "Visualizando todos os processos da rede geral"
-    );
-  };
 
   const navigateToNextStep = () => {
     handleNavigation(`/patients/${patientId}/session/${recordId}/mediators`);
@@ -129,7 +112,7 @@ const SessionNetwork = () => {
             </Button>
             <h1 className="text-3xl font-bold mb-2">Análise da Rede - {patient.full_name}</h1>
             <p className="text-muted-foreground">
-              Construa a rede de processos identificando características relevantes e suas conexões
+              Construa e edite a rede geral de processos do paciente
             </p>
           </div>
           
@@ -153,11 +136,11 @@ const SessionNetwork = () => {
             </div>
             <div className="flex items-center gap-6 text-sm">
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Processos Total:</span>
-                <Badge variant="outline" className="bg-white">{allNetworkData.nodes.length}</Badge>
+                <span className="text-muted-foreground">Sessão Atual:</span>
+                <Badge variant="outline" className="bg-white">{record.name}</Badge>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Visualizando:</span>
+                <span className="text-muted-foreground">Processos:</span>
                 <Badge variant="outline" className="bg-white">{networkData.nodes.length}</Badge>
               </div>
               <div className="flex items-center gap-2">
@@ -168,33 +151,21 @@ const SessionNetwork = () => {
           </div>
         </Card>
 
-        {/* Network Filter Toggle */}
+        {/* Network Info Card */}
         <Card className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Filter className="h-5 w-5 text-purple-600" />
-              <div>
-                <h3 className="font-semibold text-sm">
-                  {filteredBySession ? "Visualização: Apenas desta Sessão" : "Visualização: Rede Geral Completa"}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {filteredBySession 
-                    ? "Mostrando apenas processos criados nesta sessão" 
-                    : "Mostrando todos os processos de todas as sessões"}
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  📌 Todos os processos são salvos na rede geral única do paciente
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <NetworkIcon className="h-5 w-5 text-purple-600" />
+            <div>
+              <h3 className="font-semibold text-sm text-purple-900">
+                Rede Geral do Paciente
+              </h3>
+              <p className="text-xs text-purple-800">
+                Esta é a rede principal de {patient.full_name}. Todas as alterações são salvas diretamente na rede geral.
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                📌 Os processos criados nesta sessão ficarão disponíveis em todas as etapas futuras.
+              </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleToggleFilter}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {filteredBySession ? "Ver Rede Completa" : "Ver Apenas Esta Sessão"}
-            </Button>
           </div>
         </Card>
 
