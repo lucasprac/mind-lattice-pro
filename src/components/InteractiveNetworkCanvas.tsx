@@ -2,8 +2,6 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { NetworkData } from '@/hooks/useSessionNetwork';
@@ -19,10 +17,7 @@ import {
   X,
   Link2,
   Edit,
-  AlertTriangle,
   Check,
-  History,
-  Tag,
   RefreshCw
 } from "lucide-react";
 
@@ -33,8 +28,6 @@ interface NetworkNode {
   width: number;
   height: number;
   text: string;
-  sessionId: string;
-  sessionName: string;
   created_at: string;
 }
 
@@ -101,8 +94,6 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
       width: 200,
       height: 80,
       text: node.text,
-      sessionId: node.sessionId || currentSessionId,
-      sessionName: node.sessionName || currentSessionName,
       created_at: node.created_at || new Date().toISOString()
     }));
 
@@ -118,7 +109,7 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
     setNodes(mappedNodes);
     setConnections(mappedConnections);
     setHasUnsavedChanges(false);
-  }, [networkData, currentSessionId, currentSessionName]);
+  }, [networkData]);
 
   // Notify parent about unsaved changes
   useEffect(() => {
@@ -135,38 +126,57 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
       return;
     }
 
+    // Check for duplicate names
+    if (nodes.some(node => node.text.toLowerCase().trim() === newNodeText.toLowerCase().trim())) {
+      toast.error("Já existe um processo com este nome. Escolha um nome diferente.");
+      return;
+    }
+
     const node: NetworkNode = {
       id: `node-${Date.now()}`,
-      x: 100 + Math.random() * 200,
-      y: 100 + Math.random() * 200,
+      x: 100 + Math.random() * 300,
+      y: 100 + Math.random() * 300,
       width: 200,
       height: 80,
       text: newNodeText.trim(),
-      sessionId: currentSessionId,
-      sessionName: currentSessionName,
       created_at: new Date().toISOString()
     };
 
     setNodes(prev => [...prev, node]);
     setNewNodeText('');
     markAsChanged();
-    toast.success("Processo adicionado");
+    toast.success("Processo adicionado à rede geral");
   };
 
   const removeNode = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
     setNodes(prev => prev.filter(n => n.id !== nodeId));
     setConnections(prev => prev.filter(c => c.from !== nodeId && c.to !== nodeId));
     setSelectedNode(null);
     markAsChanged();
-    toast.success("Processo removido");
+    toast.success("Processo removido da rede geral");
   };
 
   const updateNodeText = (nodeId: string, newText: string) => {
+    const oldNode = nodes.find(n => n.id === nodeId);
+    if (!oldNode) return false;
+
+    // Check for duplicate names (excluding the current node)
+    if (nodes.some(node => 
+      node.id !== nodeId && 
+      node.text.toLowerCase().trim() === newText.toLowerCase().trim()
+    )) {
+      toast.error("Já existe um processo com este nome. Escolha um nome diferente.");
+      return false;
+    }
+
     setNodes(prev => prev.map(n => 
       n.id === nodeId ? { ...n, text: newText.trim() } : n
     ));
     markAsChanged();
-    toast.success("Texto do processo atualizado");
+    toast.success("Processo atualizado");
     return true;
   };
 
@@ -176,7 +186,7 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
     setShowConnectionMenu(null);
     const typeText = type === 'maladaptive' ? 'maladaptativa' : 
                     type === 'adaptive' ? 'adaptativa' : 'sem mudança';
-    toast.info(`Selecione o processo destino para conexão ${typeText}`);
+    toast.info(`Clique no processo destino para conexão ${typeText}`);
   };
 
   const completeConnection = (endNodeId: string) => {
@@ -204,11 +214,20 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
       
       setConnections(prev => [...prev, newConnection]);
       markAsChanged();
-      toast.success("Conexão criada");
+      
+      const fromNode = nodes.find(n => n.id === connectionStart);
+      const toNode = nodes.find(n => n.id === endNodeId);
+      toast.success(`Conexão criada: ${fromNode?.text} → ${toNode?.text}`);
     }
     
     setConnectionMode(null);
     setConnectionStart(null);
+  };
+
+  const removeConnection = (connectionId: string) => {
+    setConnections(prev => prev.filter(c => c.id !== connectionId));
+    markAsChanged();
+    toast.success("Conexão removida");
   };
 
   const handleMouseDown = (e: React.MouseEvent, nodeId: string) => {
@@ -279,7 +298,7 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
 
   const handleSave = async () => {
     try {
-      const networkData: NetworkData = {
+      const dataToSave: NetworkData = {
         nodes: nodes.map(node => ({
           id: node.id,
           text: node.text,
@@ -287,8 +306,6 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
           y: node.y,
           type: 'process',
           description: '',
-          sessionId: node.sessionId,
-          sessionName: node.sessionName,
           created_at: node.created_at
         })),
         connections: connections.map(connection => ({
@@ -301,7 +318,8 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
         }))
       };
       
-      const success = await onSave(networkData);
+      console.log('Saving network data:', dataToSave);
+      const success = await onSave(dataToSave);
       if (success) {
         setHasUnsavedChanges(false);
       }
@@ -358,24 +376,11 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
     }
   };
 
-  const getSessionColor = (sessionId: string) => {
-    if (sessionId === currentSessionId) {
-      return 'bg-blue-100 border-blue-400'; // Current session
-    }
-    
-    const hash = sessionId.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    
-    const colors = [
-      'bg-green-100 border-green-400',
-      'bg-purple-100 border-purple-400',
-      'bg-orange-100 border-orange-400',
-      'bg-pink-100 border-pink-400'
-    ];
-    
-    return colors[Math.abs(hash) % colors.length];
+  const handleConnectionClick = (connection: NetworkConnection, e: React.MouseEvent) => {
+    if (readOnly) return;
+    e.stopPropagation();
+    // For now, just remove the connection on click
+    removeConnection(connection.id);
   };
 
   return (
@@ -387,7 +392,7 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
             <div className="space-y-4">
               <h3 className="font-semibold flex items-center gap-2">
                 <Plus className="h-4 w-4" />
-                Adicionar Processo
+                Adicionar Processo à Rede Geral
               </h3>
               
               <Input
@@ -419,16 +424,16 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                 </Button>
               </div>
               
-              <Button onClick={handleSave} className="w-full" size="sm">
+              <Button onClick={handleSave} className="w-full" size="sm" disabled={!hasUnsavedChanges}>
                 <Save className="h-4 w-4 mr-2" />
-                Salvar Rede
+                Salvar Rede Geral
                 {hasUnsavedChanges && <span className="ml-2 text-yellow-300">*</span>}
               </Button>
             </div>
             
             {/* Status */}
             <div className="space-y-4">
-              <h3 className="font-semibold">Status</h3>
+              <h3 className="font-semibold">Status da Rede</h3>
               
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">Processos: {nodes.length}</Badge>
@@ -498,7 +503,7 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
             >
               <defs>
                 <marker
-                  id="arrow-end"
+                  id="arrow-maladaptive"
                   markerWidth="10"
                   markerHeight="10"
                   refX="9"
@@ -506,7 +511,29 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
-                  <path d="M0,0 L0,6 L9,3 z" fill="#6b7280" />
+                  <path d="M0,0 L0,6 L9,3 z" fill="#ef4444" />
+                </marker>
+                <marker
+                  id="arrow-adaptive"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="3"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M0,0 L0,6 L9,3 z" fill="#22c55e" />
+                </marker>
+                <marker
+                  id="arrow-unchanged"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="3"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M0,0 L0,6 L9,3 z" fill="#9ca3af" />
                 </marker>
               </defs>
               
@@ -514,15 +541,53 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                 const path = getConnectionPath(connection);
                 if (!path) return null;
                 
+                const fromNode = nodes.find(n => n.id === connection.from);
+                const toNode = nodes.find(n => n.id === connection.to);
+                if (!fromNode || !toNode) return null;
+                
+                const midX = (fromNode.x + fromNode.width / 2 + toNode.x + toNode.width / 2) / 2;
+                const midY = (fromNode.y + fromNode.height / 2 + toNode.y + toNode.height / 2) / 2;
+                
                 return (
-                  <path
-                    key={connection.id}
-                    d={path}
-                    className={getConnectionColor(connection.type)}
-                    strokeWidth={2 + (connection.strength * 0.5)}
-                    fill="none"
-                    markerEnd="url(#arrow-end)"
-                  />
+                  <g key={connection.id}>
+                    {/* Connection line */}
+                    <path
+                      d={path}
+                      className={getConnectionColor(connection.type)}
+                      strokeWidth={2 + (connection.strength * 0.5)}
+                      fill="none"
+                      markerEnd={`url(#arrow-${connection.type})`}
+                      style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                      onClick={(e) => handleConnectionClick(connection, e)}
+                    />
+                    
+                    {/* Strength label */}
+                    <g>
+                      <circle
+                        cx={midX}
+                        cy={midY}
+                        r="12"
+                        fill="white"
+                        stroke={connection.type === 'maladaptive' ? '#ef4444' : 
+                               connection.type === 'adaptive' ? '#22c55e' : '#9ca3af'}
+                        strokeWidth="2"
+                        style={{ pointerEvents: 'none' }}
+                      />
+                      <text
+                        x={midX}
+                        y={midY + 4}
+                        className="text-xs font-bold"
+                        textAnchor="middle"
+                        style={{ 
+                          pointerEvents: 'none',
+                          fill: connection.type === 'maladaptive' ? '#ef4444' : 
+                                connection.type === 'adaptive' ? '#22c55e' : '#9ca3af'
+                        }}
+                      >
+                        {connection.strength}
+                      </text>
+                    </g>
+                  </g>
                 );
               })}
             </svg>
@@ -531,12 +596,11 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
             {nodes.map((node) => {
               const isSelected = selectedNode === node.id;
               const isEditing = editingNodeText === node.id;
-              const sessionColors = getSessionColor(node.sessionId);
               
               return (
                 <div
                   key={node.id}
-                  className={`absolute border-2 rounded-lg shadow-md transition-all ${sessionColors} ${
+                  className={`absolute border-2 rounded-lg shadow-md transition-all bg-white border-blue-400 ${
                     isSelected ? 'ring-4 ring-blue-400 ring-opacity-50' : ''
                   }`}
                   style={{
@@ -551,19 +615,9 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                   }}
                   onMouseDown={(e) => handleMouseDown(e, node.id)}
                 >
-                  <div className="flex-1 flex flex-col justify-between min-h-0">
-                    {/* Session marker */}
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-1">
-                        <Tag className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                          {node.sessionName}
-                        </span>
-                      </div>
-                    </div>
-                    
+                  <div className="flex-1 flex flex-col justify-center min-h-0">
                     {/* Text content */}
-                    <div className="flex-1 mb-2">
+                    <div className="flex-1">
                       {isEditing ? (
                         <div className="space-y-2">
                           <Input
@@ -590,7 +644,7 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm font-medium break-words leading-tight">
+                        <p className="text-sm font-medium break-words leading-tight text-center">
                           {node.text}
                         </p>
                       )}
@@ -598,7 +652,7 @@ export const InteractiveNetworkCanvas: React.FC<InteractiveNetworkCanvasProps> =
                     
                     {/* Action buttons */}
                     {!readOnly && !isEditing && (
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-center gap-2 mt-2">
                         <Button
                           size="sm"
                           variant="ghost"
