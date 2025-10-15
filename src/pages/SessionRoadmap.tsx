@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,10 @@ import {
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
-  Edit
+  Edit,
+  ChevronLeft,
+  ChevronRight,
+  Navigation
 } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
@@ -73,6 +76,15 @@ const SessionRoadmap = () => {
   const patient = patients.find(p => p.id === patientId);
   const record = records.find(r => r.id === recordId);
 
+  // Detect current step based on current URL
+  useEffect(() => {
+    const path = window.location.pathname;
+    const step = ROADMAP_STEPS.find(s => path.includes(s.path.substring(1)));
+    if (step) {
+      setCurrentStep(step.id);
+    }
+  }, []);
+
   if (!patient || !record) {
     return (
       <div className="p-6">
@@ -94,6 +106,16 @@ const SessionRoadmap = () => {
     navigate(`/patients/${patientId}/session/${recordId}${step.path}`);
   };
 
+  const navigateToStep = (stepId: number) => {
+    const step = ROADMAP_STEPS.find(s => s.id === stepId);
+    if (step && step.status !== "development") {
+      handleStepClick(step);
+    }
+  };
+
+  const canGoToPrevious = currentStep > 1;
+  const canGoToNext = currentStep < ROADMAP_STEPS.length && ROADMAP_STEPS[currentStep]?.status !== "development";
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -112,7 +134,33 @@ const SessionRoadmap = () => {
             Roadmap da Sessão #{record.session_number} - {format(new Date(record.session_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        
+        {/* Navigation Shortcut */}
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <Navigation className="h-3 w-3" />
+            Etapa {currentStep} de {ROADMAP_STEPS.length}
+          </Badge>
+          <div className="flex items-center gap-1 border rounded-lg p-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigateToStep(currentStep - 1)}
+              disabled={!canGoToPrevious}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigateToStep(currentStep + 1)}
+              disabled={!canGoToNext}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -121,9 +169,6 @@ const SessionRoadmap = () => {
             <Edit className="h-4 w-4 mr-2" />
             Editar Prontuário
           </Button>
-          <Badge variant="secondary" className="h-fit">
-            Sessão {record.session_number}
-          </Badge>
         </div>
       </div>
 
