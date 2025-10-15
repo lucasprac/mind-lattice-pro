@@ -26,15 +26,17 @@ export const usePatientMediators = (patientId: string, recordId?: string) => {
         .eq("patient_id", patientId)
         .eq("therapist_id", user.id);
 
+      // Always filter by record_id for session-specific mediators
       if (recordId) {
         query = query.eq("record_id", recordId);
+      } else {
+        query = query.is("record_id", null);
       }
 
       const { data, error } = await query;
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error("Erro ao buscar mediadores:", error);
-        toast.error("Erro ao carregar mediadores");
         return;
       }
 
@@ -49,7 +51,7 @@ export const usePatientMediators = (patientId: string, recordId?: string) => {
 
       setMediatorProcesses(organized);
     } catch (err) {
-      console.error("Erro inesperado:", err);
+      console.error("Erro inesperado ao buscar mediadores:", err);
     } finally {
       setLoading(false);
     }
@@ -71,6 +73,8 @@ export const usePatientMediators = (patientId: string, recordId?: string) => {
 
       if (recordId) {
         deleteQuery = deleteQuery.eq("record_id", recordId);
+      } else {
+        deleteQuery = deleteQuery.is("record_id", null);
       }
 
       await deleteQuery;
@@ -124,6 +128,21 @@ export const usePatientMediators = (patientId: string, recordId?: string) => {
     return [...new Set(processes)]; // Remove duplicates
   };
 
+  // Get processes with their dimension and mediator info for step 4
+  const getProcessesWithMediators = (): Array<{process: string, dimension: string, mediator: string}> => {
+    const processesWithInfo: Array<{process: string, dimension: string, mediator: string}> = [];
+    
+    Object.entries(mediatorProcesses).forEach(([dimension, mediators]) => {
+      Object.entries(mediators).forEach(([mediator, processes]) => {
+        processes.forEach(process => {
+          processesWithInfo.push({ process, dimension, mediator });
+        });
+      });
+    });
+    
+    return processesWithInfo;
+  };
+
   useEffect(() => {
     fetchMediators();
   }, [user?.id, patientId, recordId]);
@@ -133,6 +152,7 @@ export const usePatientMediators = (patientId: string, recordId?: string) => {
     loading,
     saveMediators,
     getAllProcesses,
+    getProcessesWithMediators,
     refetch: fetchMediators,
   };
 };
