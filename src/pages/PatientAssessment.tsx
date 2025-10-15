@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Save, ClipboardList, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, ClipboardList, AlertCircle, Edit, Eye, CheckCircle } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { usePatientAssessments } from "@/hooks/usePatientAssessments";
 import { useRecords } from "@/hooks/useRecords";
@@ -63,15 +63,42 @@ const PatientAssessment = () => {
   const navigate = useNavigate();
   const { patients } = usePatients();
   const { records } = useRecords(patientId);
-  const { saveAssessment, loading } = usePatientAssessments(patientId || "", recordId);
+  const { assessments, saveAssessment, loading, getLatestAssessment } = usePatientAssessments(patientId || "", recordId);
   
   const patient = patients.find(p => p.id === patientId);
   const record = records.find(r => r.id === recordId);
   
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [healthStatus, setHealthStatus] = useState<string>(""); // Start empty to properly track selection
+  const [healthStatus, setHealthStatus] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [existingAssessment, setExistingAssessment] = useState<any>(null);
+
+  // Load existing assessment for this session
+  useEffect(() => {
+    if (!loading && assessments.length > 0) {
+      const sessionAssessment = assessments.find(a => a.record_id === recordId);
+      if (sessionAssessment) {
+        setExistingAssessment(sessionAssessment);
+        // Load existing data
+        const loadedAnswers: Record<string, number> = {};
+        for (let i = 1; i <= 34; i++) {
+          if (i === 29) continue; // Skip health status
+          const value = (sessionAssessment as any)[`q${i}`];
+          if (value !== undefined) {
+            loadedAnswers[`q${i}`] = value;
+          }
+        }
+        setAnswers(loadedAnswers);
+        setHealthStatus((sessionAssessment as any).q29 || "");
+        setNotes(sessionAssessment.notes || "");
+        setEditMode(false); // Start in view mode for existing assessments
+      } else {
+        setEditMode(true); // Start in edit mode for new assessments
+      }
+    }
+  }, [loading, assessments, recordId]);
 
   if (!patient) {
     return (
@@ -86,38 +113,45 @@ const PatientAssessment = () => {
     );
   }
 
-  // Calculate progress based on answered questions - FIXED: now properly counts health status
-  const totalQuestions = PBAT_QUESTIONS.length + OUTCOME_QUESTIONS.length + VITALITY_QUESTIONS.length + 1; // +1 for health status
-  const answeredQuestions = Object.keys(answers).length + (healthStatus ? 1 : 0); // Count health status if any option is selected
+  // Calculate progress based on answered questions
+  const totalQuestions = PBAT_QUESTIONS.length + OUTCOME_QUESTIONS.length + VITALITY_QUESTIONS.length + 1;
+  const answeredQuestions = Object.keys(answers).length + (healthStatus ? 1 : 0);
   const progress = Math.round((answeredQuestions / totalQuestions) * 100);
 
   const handleSliderChange = (question: number, value: number[]) => {
+    if (!editMode) return;
     setAnswers(prev => ({ ...prev, [`q${question}`]: value[0] }));
+  };
+
+  const handleHealthStatusChange = (value: string) => {
+    if (!editMode) return;
+    setHealthStatus(value);
+  };
+
+  const handleNotesChange = (value: string) => {
+    if (!editMode) return;
+    setNotes(value);
   };
 
   const validateForm = () => {
     const missingAnswers = [];
     
-    // Check PBAT questions (1-23)
     for (let i = 1; i <= 23; i++) {
       if (answers[`q${i}`] === undefined) {
         missingAnswers.push(`Questão PBAT ${i}`);
       }
     }
     
-    // Check outcome questions (24-28)
     for (let i = 24; i <= 28; i++) {
       if (answers[`q${i}`] === undefined) {
         missingAnswers.push(`Questão de Resultado ${i - 23}`);
       }
     }
     
-    // Check health status - FIXED: now properly validates any selection
     if (!healthStatus) {
       missingAnswers.push("Questão de Saúde");
     }
     
-    // Check vitality questions (30-34)
     for (let i = 30; i <= 34; i++) {
       if (answers[`q${i}`] === undefined) {
         missingAnswers.push(`Questão de Vitalidade ${i - 29}`);
@@ -141,32 +175,32 @@ const PatientAssessment = () => {
       const assessmentData: any = {
         assessment_date: new Date().toISOString(),
         notes,
-        // Ensure record_id is included for session correlation
         record_id: recordId || null,
       };
 
-      // Add PBAT questions
+      if (existingAssessment) {
+        assessmentData.id = existingAssessment.id;
+      }
+
+      // Add all question responses
       for (let i = 1; i <= 23; i++) {
         assessmentData[`q${i}`] = answers[`q${i}`] || 0;
       }
 
-      // Add outcome questions
       for (let i = 24; i <= 28; i++) {
         assessmentData[`q${i}`] = answers[`q${i}`] || 0;
       }
 
-      // Add health status
       assessmentData.q29 = healthStatus;
 
-      // Add vitality questions
       for (let i = 30; i <= 34; i++) {
         assessmentData[`q${i}`] = answers[`q${i}`] || 0;
       }
 
       const success = await saveAssessment(assessmentData);
       if (success) {
-        toast.success("Avaliação salva e correlacionada com a sessão!");
-        navigate(`/patients/${patientId}`);
+        setEditMode(false);
+        toast.success(existingAssessment ? "Avaliação atualizada com sucesso!" : "Avaliação salva e correlacionada com a sessão!");
       }
     } catch (error) {
       console.error("Erro ao salvar avaliação:", error);
@@ -176,27 +210,69 @@ const PatientAssessment = () => {
     }
   };
 
+  const isReadOnly = existingAssessment && !editMode;
+
   return (
     <div className="space-y-6">
-      <div>
-        <Button
-          variant="ghost"
-          onClick={() => navigate(`/patients/${patientId}`)}
-          className="mb-2"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar para Roadmap
-        </Button>
-        <h1 className="text-3xl font-bold mb-2">Avaliação Inicial - {patient.full_name}</h1>
-        <p className="text-muted-foreground">
-          Escala PBAT (Process-Based Assessment Tool)
-          {record && (
-            <span className="block text-sm mt-1">
-              Sessão: {format(new Date(record.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-            </span>
+      <div className="flex items-center justify-between">
+        <div>
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/patients/${patientId}/session/${recordId}/roadmap`)}
+            className="mb-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar para Roadmap
+          </Button>
+          <h1 className="text-3xl font-bold mb-2">Avaliação Inicial - {patient.full_name}</h1>
+          <p className="text-muted-foreground">
+            Escala PBAT (Process-Based Assessment Tool)
+            {record && (
+              <span className="block text-sm mt-1">
+                Sessão: {format(new Date(record.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </span>
+            )}
+          </p>
+        </div>
+        
+        {/* Mode Toggle Buttons */}
+        <div className="flex items-center gap-2">
+          {existingAssessment && (
+            <>
+              {editMode ? (
+                <Button variant="outline" onClick={() => setEditMode(false)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Visualizar
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setEditMode(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+              )}
+            </>
           )}
-        </p>
+        </div>
       </div>
+
+      {/* Assessment Status */}
+      {existingAssessment && (
+        <Card className="p-4 bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <div>
+              <h3 className="font-semibold text-green-900">
+                {editMode ? "Editando Avaliação Existente" : "Avaliação Concluída"}
+              </h3>
+              <p className="text-sm text-green-800">
+                {editMode 
+                  ? "Você pode alterar as respostas e salvar as mudanças."
+                  : "Avaliação realizada. Clique em 'Editar' para fazer alterações."}
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Progress Indicator */}
       <Card className="p-4">
@@ -241,7 +317,7 @@ const PatientAssessment = () => {
             return (
               <div key={index} className="space-y-3">
                 <Label className="text-sm font-medium flex items-center gap-2">
-                  {!hasAnswer && <AlertCircle className="h-4 w-4 text-amber-500" />}
+                  {!hasAnswer && editMode && <AlertCircle className="h-4 w-4 text-amber-500" />}
                   {index + 1}. {question}
                 </Label>
                 <div className="flex items-center gap-4">
@@ -252,6 +328,7 @@ const PatientAssessment = () => {
                     max={100}
                     step={10}
                     className="flex-1"
+                    disabled={isReadOnly}
                   />
                   <span className="text-xs text-muted-foreground w-32 text-right">Concordo completamente</span>
                   <Badge 
@@ -279,7 +356,7 @@ const PatientAssessment = () => {
             return (
               <div key={index} className="space-y-3">
                 <Label className="text-sm font-medium flex items-center gap-2">
-                  {!hasAnswer && <AlertCircle className="h-4 w-4 text-amber-500" />}
+                  {!hasAnswer && editMode && <AlertCircle className="h-4 w-4 text-amber-500" />}
                   {questionNumber}. {question}
                 </Label>
                 <div className="flex items-center gap-4">
@@ -290,6 +367,7 @@ const PatientAssessment = () => {
                     max={100}
                     step={10}
                     className="flex-1"
+                    disabled={isReadOnly}
                   />
                   <span className="text-xs text-muted-foreground w-24 text-right">Severamente</span>
                   <Badge 
@@ -309,30 +387,30 @@ const PatientAssessment = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {!healthStatus && <AlertCircle className="h-4 w-4 text-amber-500" />}
+            {!healthStatus && editMode && <AlertCircle className="h-4 w-4 text-amber-500" />}
             29. Durante a última semana, você diria que sua saúde estava:
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <RadioGroup value={healthStatus} onValueChange={setHealthStatus}>
+          <RadioGroup value={healthStatus} onValueChange={handleHealthStatusChange} disabled={isReadOnly}>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="muito_ruim" id="muito_ruim" />
+              <RadioGroupItem value="muito_ruim" id="muito_ruim" disabled={isReadOnly} />
               <Label htmlFor="muito_ruim">Muito Ruim</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="ruim" id="ruim" />
+              <RadioGroupItem value="ruim" id="ruim" disabled={isReadOnly} />
               <Label htmlFor="ruim">Ruim</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="boa" id="boa" />
+              <RadioGroupItem value="boa" id="boa" disabled={isReadOnly} />
               <Label htmlFor="boa">Boa</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="muito_boa" id="muito_boa" />
+              <RadioGroupItem value="muito_boa" id="muito_boa" disabled={isReadOnly} />
               <Label htmlFor="muito_boa">Muito Boa</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="excelente" id="excelente" />
+              <RadioGroupItem value="excelente" id="excelente" disabled={isReadOnly} />
               <Label htmlFor="excelente">Excelente</Label>
             </div>
           </RadioGroup>
@@ -351,7 +429,7 @@ const PatientAssessment = () => {
             return (
               <div key={index} className="space-y-3">
                 <Label className="text-sm font-medium flex items-center gap-2">
-                  {!hasAnswer && <AlertCircle className="h-4 w-4 text-amber-500" />}
+                  {!hasAnswer && editMode && <AlertCircle className="h-4 w-4 text-amber-500" />}
                   {questionNumber}. {question}
                 </Label>
                 <div className="flex items-center gap-4">
@@ -362,6 +440,7 @@ const PatientAssessment = () => {
                     max={100}
                     step={10}
                     className="flex-1"
+                    disabled={isReadOnly}
                   />
                   <span className="text-xs text-muted-foreground w-32 text-right">Totalmente verdadeira</span>
                   <Badge 
@@ -386,28 +465,31 @@ const PatientAssessment = () => {
           <Textarea
             placeholder="Adicione observações sobre esta avaliação..."
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => handleNotesChange(e.target.value)}
             rows={4}
+            disabled={isReadOnly}
           />
         </CardContent>
       </Card>
 
-      {/* Save Button */}
+      {/* Action Buttons */}
       <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={() => navigate(`/patients/${patientId}`)}>
-          Cancelar
+        <Button variant="outline" onClick={() => navigate(`/patients/${patientId}/session/${recordId}/roadmap`)}>
+          Voltar
         </Button>
-        <Button 
-          onClick={handleSave} 
-          disabled={saving || loading || progress < 100}
-          className="min-w-32"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? "Salvando..." : "Salvar Avaliação"}
-        </Button>
+        {editMode && (
+          <Button 
+            onClick={handleSave} 
+            disabled={saving || loading || progress < 100}
+            className="min-w-32"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saving ? "Salvando..." : existingAssessment ? "Salvar Alterações" : "Salvar Avaliação"}
+          </Button>
+        )}
       </div>
       
-      {progress < 100 && (
+      {editMode && progress < 100 && (
         <Card className="p-4 border-amber-200 bg-amber-50">
           <div className="flex items-center gap-2 text-amber-800">
             <AlertCircle className="h-5 w-5" />
