@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, X, Save, ArrowRight } from "lucide-react";
+import { ArrowLeft, Plus, X, Save } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
-import { useSessionNetwork } from "@/hooks/useSessionNetwork";
+import { usePatientNetwork } from "@/hooks/usePatientNetwork";
 import { usePatientMediators } from "@/hooks/usePatientMediators";
 
 const EEMM_STRUCTURE = {
@@ -55,8 +55,8 @@ const SessionMediators = () => {
   const { patients } = usePatients();
   const { records } = useRecords(patientId);
   
-  // Get network data from the general network (not filtered by session)
-  const { allNetworkData } = useSessionNetwork(patientId || "", recordId);
+  // Get network data from this session only
+  const { networkData } = usePatientNetwork(patientId || "", recordId, false);
   const { mediatorProcesses, loading, saveMediators } = usePatientMediators(
     patientId || "",
     recordId
@@ -69,8 +69,8 @@ const SessionMediators = () => {
   const patient = patients.find(p => p.id === patientId);
   const record = records.find(r => r.id === recordId);
   
-  // Get available processes from the general network (all processes)
-  const availableProcesses = allNetworkData.nodes.map(node => node.text);
+  // Get available processes from this session's network
+  const availableProcesses = networkData.nodes.map(node => node.text);
 
   // Update local state when mediator processes load
   useEffect(() => {
@@ -125,34 +125,21 @@ const SessionMediators = () => {
     0
   );
 
-  // Função para navegar para a próxima etapa
-  const navigateToNextStep = () => {
-    navigate(`/patients/${patientId}/session/${recordId}/functional`);
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <Button
-            variant="ghost"
-            onClick={() => navigate(`/patients/${patientId}/session/${recordId}/roadmap`)}
-            className="mb-2"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar para Roadmap
-          </Button>
-          <h1 className="text-3xl font-bold mb-2">Análise de Mediadores - {patient.full_name}</h1>
-          <p className="text-muted-foreground">
-            Organize os processos da rede em mediadores específicos por dimensão EEMM
-          </p>
-        </div>
-        
-        {/* Botão para avançar etapa */}
-        <Button onClick={navigateToNextStep} className="mt-8">
-          Próxima Etapa
-          <ArrowRight className="h-4 w-4 ml-2" />
+      <div>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(`/patients/${patientId}/session/${recordId}/roadmap`)}
+          className="mb-2"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar para Roadmap
         </Button>
+        <h1 className="text-3xl font-bold mb-2">Análise de Mediadores - {patient.full_name}</h1>
+        <p className="text-muted-foreground">
+          Organize os processos da rede em mediadores específicos por dimensão EEMM
+        </p>
       </div>
 
       {/* Journey Progress Card */}

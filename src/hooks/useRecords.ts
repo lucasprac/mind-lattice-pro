@@ -80,18 +80,6 @@ export const useRecords = (patientId?: string) => {
     }
 
     try {
-      // First, delete related assessments
-      const { error: assessmentError } = await supabase
-        .from("patient_assessments")
-        .delete()
-        .eq("session_id", recordId);
-
-      if (assessmentError) {
-        console.error("Erro ao deletar avaliações da sessão:", assessmentError);
-        // Continue anyway, as assessments might not exist
-      }
-
-      // Delete the record
       const { error } = await supabase
         .from("records")
         .delete()
@@ -99,23 +87,23 @@ export const useRecords = (patientId?: string) => {
         .eq("therapist_id", user.id);
 
       if (error) {
-        console.error("Erro ao deletar sessão:", error);
-        toast.error("Erro ao deletar sessão");
+        console.error("Erro ao deletar registro:", error);
+        toast.error("Erro ao deletar registro");
         return false;
       }
 
-      toast.success("Sessão deletada com sucesso");
+      toast.success("Registro deletado com sucesso");
       // Remove record from local state
       setRecords(prev => prev.filter(r => r.id !== recordId));
       return true;
     } catch (err) {
-      console.error("Erro inesperado ao deletar sessão:", err);
-      toast.error("Erro inesperado ao deletar sessão");
+      console.error("Erro inesperado ao deletar:", err);
+      toast.error("Erro inesperado ao deletar registro");
       return false;
     }
   };
 
-  const updateRecord = async (recordId: string, updates: Partial<Omit<Record, 'id' | 'therapist_id' | 'created_at' | 'updated_at' | 'patient'>>) => {
+  const updateRecord = async (recordId: string, updates: Partial<Record>) => {
     if (!user?.id) {
       toast.error("Usuário não autenticado");
       return false;
@@ -150,52 +138,6 @@ export const useRecords = (patientId?: string) => {
       console.error("Erro inesperado ao atualizar:", err);
       toast.error("Erro inesperado ao atualizar registro");
       return false;
-    }
-  };
-
-  const createRecord = async (recordData: {
-    patient_id: string;
-    session_date: string;
-    session_number?: number;
-    description: string;
-    keywords: string[];
-    observations?: string;
-  }) => {
-    if (!user?.id) {
-      toast.error("Usuário não autenticado");
-      return null;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("records")
-        .insert({
-          ...recordData,
-          therapist_id: user.id
-        })
-        .select(`
-          *,
-          patient:patients(
-            id,
-            full_name
-          )
-        `)
-        .single();
-
-      if (error) {
-        console.error("Erro ao criar registro:", error);
-        toast.error("Erro ao criar registro");
-        return null;
-      }
-
-      toast.success("Registro criado com sucesso");
-      // Add record to local state
-      setRecords(prev => [data, ...prev]);
-      return data;
-    } catch (err) {
-      console.error("Erro inesperado ao criar registro:", err);
-      toast.error("Erro inesperado ao criar registro");
-      return null;
     }
   };
 
@@ -269,7 +211,6 @@ export const useRecords = (patientId?: string) => {
     loading,
     error,
     fetchRecords,
-    createRecord,
     deleteRecord,
     updateRecord,
     searchRecords,

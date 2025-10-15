@@ -9,13 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ArrowRight, FileText, Calendar } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const PatientSession = () => {
   const { patientId, recordId } = useParams<{ patientId: string; recordId?: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { patients } = usePatients();
-  const { records, createRecord, updateRecord } = useRecords(patientId);
+  const { records } = useRecords(patientId);
   
   const patient = patients.find(p => p.id === patientId);
   const existingRecord = recordId ? records.find(r => r.id === recordId) : null;
@@ -56,35 +59,49 @@ const PatientSession = () => {
         .map(k => k.trim())
         .filter(k => k.length > 0);
 
-      if (recordId && updateRecord) {
+      if (recordId) {
         // Update existing record
-        const success = await updateRecord(recordId, {
-          session_date: new Date(sessionDate).toISOString(),
-          description: description.trim(),
-          observations: observations.trim() || undefined,
-          keywords: keywordsArray,
-        });
+        const { error } = await supabase
+          .from("records")
+          .update({
+            session_date: new Date(sessionDate).toISOString(),
+            description: description.trim(),
+            observations: observations.trim() || null,
+            keywords: keywordsArray,
+          })
+          .eq("id", recordId)
+          .eq("therapist_id", user!.id);
 
-        if (success) {
-          navigate(`/patients/${patientId}/session/${recordId}/roadmap`);
-        }
-      } else if (createRecord) {
+        if (error) throw error;
+        toast.success("Prontuário atualizado com sucesso");
+      } else {
         // Create new record
         const sessionNumber = records.length + 1;
         
-        const newRecord = await createRecord({
-          patient_id: patientId!,
-          session_date: new Date(sessionDate).toISOString(),
-          session_number: sessionNumber,
-          description: description.trim(),
-          observations: observations.trim() || undefined,
-          keywords: keywordsArray,
-        });
+        const { data, error } = await supabase
+          .from("records")
+          .insert({
+            patient_id: patientId!,
+            therapist_id: user!.id,
+            session_date: new Date(sessionDate).toISOString(),
+            session_number: sessionNumber,
+            description: description.trim(),
+            observations: observations.trim() || null,
+            keywords: keywordsArray,
+          })
+          .select()
+          .single();
 
-        if (newRecord) {
-          navigate(`/patients/${patientId}/session/${newRecord.id}/roadmap`);
-        }
+        if (error) throw error;
+        toast.success("Prontuário criado com sucesso");
+        
+        // Navigate to the roadmap with the new record ID
+        navigate(`/patients/${patientId}/session/${data.id}/roadmap`);
+        return;
       }
+
+      // If updating, go back to roadmap
+      navigate(`/patients/${patientId}/session/${recordId}/roadmap`);
     } catch (error) {
       console.error("Erro ao salvar prontuário:", error);
       toast.error("Erro ao salvar prontuário");
