@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Calendar, FileText, ArrowRight } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, FileText, ArrowRight, Share2, Network } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
 import { format } from "date-fns";
@@ -29,6 +29,9 @@ const PatientRoadmapList = () => {
     );
   }
 
+  // Choose latest record id for deep-linking to session network when user clicks Rede
+  const latestRecordId = records && records.length > 0 ? records[0].id : "new";
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -43,13 +46,20 @@ const PatientRoadmapList = () => {
             Voltar para Pacientes
           </Button>
           <h1 className="text-3xl font-bold">{patient.full_name}</h1>
-          <p className="text-muted-foreground">
-            Sessões e Roadmaps de Intervenção
-          </p>
+          <p className="text-muted-foreground">Sessões e Roadmaps de Intervenção</p>
         </div>
-        <Badge variant="secondary" className="h-fit">
-          {patient.status === "active" ? "Ativo" : patient.status === "inactive" ? "Inativo" : "Finalizado"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate(`/patients/${patientId}/session/${latestRecordId}/network`)}
+          >
+            <Network className="h-4 w-4 mr-2" />
+            Rede
+          </Button>
+          <Badge variant="secondary" className="h-fit">
+            {patient.status === "active" ? "Ativo" : patient.status === "inactive" ? "Inativo" : "Finalizado"}
+          </Badge>
+        </div>
       </div>
 
       {/* Info Card */}
