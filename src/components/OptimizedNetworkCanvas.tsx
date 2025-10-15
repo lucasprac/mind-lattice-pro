@@ -58,6 +58,9 @@ interface ProcessNode {
   width: number;
   height: number;
   text: string;
+  // Internal session tracking - not displayed to user
+  session_id?: string;
+  created_in_session?: string;
 }
 
 type ConnectionType = 'maladaptive' | 'unchanged' | 'adaptive';
@@ -71,6 +74,9 @@ interface Connection {
   ambivalent: boolean;
   startMarker: MarkerType;
   endMarker: MarkerType;
+  // Internal session tracking
+  session_id?: string;
+  created_in_session?: string;
 }
 
 interface NetworkCanvasProps {
@@ -80,12 +86,14 @@ interface NetworkCanvasProps {
   };
   onSave?: (data: { nodes: ProcessNode[]; connections: Connection[] }) => void;
   readOnly?: boolean;
+  currentSessionId?: string; // For session tracking
 }
 
 export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
   networkData,
   onSave,
-  readOnly = false
+  readOnly = false,
+  currentSessionId
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes] = useState<ProcessNode[]>(networkData?.nodes || []);
@@ -188,6 +196,9 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       width: optimalSize.width,
       height: optimalSize.height,
       text: newProcessText,
+      // Add session tracking for new nodes
+      session_id: currentSessionId,
+      created_in_session: currentSessionId,
     };
 
     saveToHistory();
@@ -260,7 +271,10 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
         strength: 3,
         ambivalent: false,
         startMarker: defaultStartMarker,
-        endMarker: defaultEndMarker
+        endMarker: defaultEndMarker,
+        // Add session tracking for new connections
+        session_id: currentSessionId,
+        created_in_session: currentSessionId,
       };
       
       saveToHistory();
