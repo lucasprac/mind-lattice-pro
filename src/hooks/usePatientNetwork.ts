@@ -52,13 +52,15 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
     try {
       setLoading(true);
       
-      // Always fetch general network (record_id = null)
+      // Use existing 'networks' table - look for patient network by name convention
+      const networkName = `Rede do Paciente`;
+      
       const { data, error } = await supabase
-        .from("patient_networks")
+        .from("networks")
         .select("*")
         .eq("patient_id", patientId)
         .eq("therapist_id", user.id)
-        .is("record_id", null) // Always general network
+        .eq("name", networkName)
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
@@ -66,9 +68,9 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
         return;
       }
 
-      if (data) {
-        // Clean and adapt existing data to new interface with session tracking
-        const nodes = data.nodes?.map((node: any) => ({
+      if (data && data.network_data) {
+        // Extract nodes and connections from network_data
+        const nodes = data.network_data.nodes?.map((node: any) => ({
           id: node.id,
           x: node.x || 0,
           y: node.y || 0,
@@ -80,7 +82,7 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
           created_in_session: node.created_in_session
         })) || [];
         
-        const connections = data.connections?.map((conn: any) => ({
+        const connections = data.network_data.connections?.map((conn: any) => ({
           ...conn,
           // Preserve session tracking info if it exists
           session_id: conn.session_id,
@@ -122,28 +124,32 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
         created_in_session: conn.created_in_session || currentSessionId
       }));
 
-      const saveData = {
-        patient_id: patientId,
-        therapist_id: user.id,
-        record_id: null, // Always save to general network
+      const networkName = `Rede do Paciente`;
+      const networkData = {
         nodes: nodesWithSessionTracking,
         connections: connectionsWithSessionTracking,
+        metadata: {
+          updated_at: new Date().toISOString(),
+          total_nodes: nodesWithSessionTracking.length,
+          total_connections: connectionsWithSessionTracking.length,
+          session_tracking: true
+        }
       };
 
-      console.log("Tentando salvar rede com dados:", { 
+      console.log("Tentando salvar rede usando tabela 'networks':", { 
         patientId, 
         therapistId: user.id, 
         nodesCount: nodesWithSessionTracking.length, 
         connectionsCount: connectionsWithSessionTracking.length 
       });
 
-      // Check if general network already exists
+      // Check if patient network already exists
       const { data: existingData, error: checkError } = await supabase
-        .from("patient_networks")
+        .from("networks")
         .select("id")
         .eq("patient_id", patientId)
         .eq("therapist_id", user.id)
-        .is("record_id", null)
+        .eq("name", networkName)
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -153,11 +159,15 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
       }
 
       if (existingData) {
-        // Update existing general network
+        // Update existing patient network
         console.log("Atualizando rede existente com ID:", existingData.id);
         const { error: updateError } = await supabase
-          .from("patient_networks")
-          .update(saveData)
+          .from("networks")
+          .update({
+            network_data: networkData,
+            description: `Rede de processos do paciente - ${nodesWithSessionTracking.length} processos, ${connectionsWithSessionTracking.length} conexões`,
+            updated_at: new Date().toISOString()
+          })
           .eq("id", existingData.id);
 
         if (updateError) {
@@ -167,11 +177,18 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
         }
         console.log("Rede atualizada com sucesso!");
       } else {
-        // Create new general network
-        console.log("Criando nova rede");
+        // Create new patient network
+        console.log("Criando nova rede do paciente");
         const { error: insertError, data: insertData } = await supabase
-          .from("patient_networks")
-          .insert([saveData])
+          .from("networks")
+          .insert([{
+            patient_id: patientId,
+            therapist_id: user.id,
+            name: networkName,
+            description: `Rede de processos do paciente - ${nodesWithSessionTracking.length} processos, ${connectionsWithSessionTracking.length} conexões`,
+            network_data: networkData,
+            version: 1
+          }])
           .select();
 
         if (insertError) {
