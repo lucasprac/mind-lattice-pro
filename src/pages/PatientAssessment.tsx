@@ -72,33 +72,51 @@ const PatientAssessment = () => {
   const [healthStatus, setHealthStatus] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(true); // Always start in edit mode
   const [existingAssessment, setExistingAssessment] = useState<any>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Load existing assessment for this session
   useEffect(() => {
-    if (!loading && assessments.length > 0) {
+    if (!loading && !dataLoaded) {
       const sessionAssessment = assessments.find(a => a.record_id === recordId);
+      
       if (sessionAssessment) {
+        console.log("Carregando avaliação existente:", sessionAssessment);
         setExistingAssessment(sessionAssessment);
+        
         // Load existing data
         const loadedAnswers: Record<string, number> = {};
         for (let i = 1; i <= 34; i++) {
           if (i === 29) continue; // Skip health status
           const value = (sessionAssessment as any)[`q${i}`];
-          if (value !== undefined) {
+          if (value !== undefined && value !== null) {
             loadedAnswers[`q${i}`] = value;
           }
         }
+        
         setAnswers(loadedAnswers);
         setHealthStatus((sessionAssessment as any).q29 || "");
         setNotes(sessionAssessment.notes || "");
         setEditMode(false); // Start in view mode for existing assessments
       } else {
+        console.log("Nenhuma avaliação existente encontrada, iniciando nova");
+        setExistingAssessment(null);
         setEditMode(true); // Start in edit mode for new assessments
+        // Clear form for new assessment
+        setAnswers({});
+        setHealthStatus("");
+        setNotes("");
       }
+      
+      setDataLoaded(true);
     }
-  }, [loading, assessments, recordId]);
+  }, [loading, assessments, recordId, dataLoaded]);
+
+  // Reset data when recordId changes
+  useEffect(() => {
+    setDataLoaded(false);
+  }, [recordId]);
 
   if (!patient) {
     return (
@@ -119,17 +137,14 @@ const PatientAssessment = () => {
   const progress = Math.round((answeredQuestions / totalQuestions) * 100);
 
   const handleSliderChange = (question: number, value: number[]) => {
-    if (!editMode) return;
     setAnswers(prev => ({ ...prev, [`q${question}`]: value[0] }));
   };
 
   const handleHealthStatusChange = (value: string) => {
-    if (!editMode) return;
     setHealthStatus(value);
   };
 
   const handleNotesChange = (value: string) => {
-    if (!editMode) return;
     setNotes(value);
   };
 
@@ -162,6 +177,11 @@ const PatientAssessment = () => {
   };
 
   const handleSave = async () => {
+    if (!editMode) {
+      setEditMode(true);
+      return;
+    }
+
     const missingAnswers = validateForm();
     
     if (missingAnswers.length > 0) {
@@ -201,6 +221,7 @@ const PatientAssessment = () => {
       if (success) {
         setEditMode(false);
         toast.success(existingAssessment ? "Avaliação atualizada com sucesso!" : "Avaliação salva e correlacionada com a sessão!");
+        setDataLoaded(false); // Trigger reload of assessment data
       }
     } catch (error) {
       console.error("Erro ao salvar avaliação:", error);
@@ -209,6 +230,17 @@ const PatientAssessment = () => {
       setSaving(false);
     }
   };
+
+  // Show loading state while data is being loaded
+  if (loading || !dataLoaded) {
+    return (
+      <div className="p-6">
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">Carregando avaliação...</p>
+        </Card>
+      </div>
+    );
+  }
 
   const isReadOnly = existingAssessment && !editMode;
 
@@ -324,7 +356,7 @@ const PatientAssessment = () => {
                   <span className="text-xs text-muted-foreground w-32">Discordo completamente</span>
                   <Slider
                     value={[answers[`q${index + 1}`] || 0]}
-                    onValueChange={(value) => handleSliderChange(index + 1, value)}
+                    onValueChange={(value) => editMode && handleSliderChange(index + 1, value)}
                     max={100}
                     step={10}
                     className="flex-1"
@@ -363,7 +395,7 @@ const PatientAssessment = () => {
                   <span className="text-xs text-muted-foreground w-24">Nenhum pouco</span>
                   <Slider
                     value={[answers[`q${questionNumber}`] || 0]}
-                    onValueChange={(value) => handleSliderChange(questionNumber, value)}
+                    onValueChange={(value) => editMode && handleSliderChange(questionNumber, value)}
                     max={100}
                     step={10}
                     className="flex-1"
@@ -392,26 +424,26 @@ const PatientAssessment = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <RadioGroup value={healthStatus} onValueChange={handleHealthStatusChange} disabled={isReadOnly}>
+          <RadioGroup value={healthStatus} onValueChange={editMode ? handleHealthStatusChange : undefined}>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="muito_ruim" id="muito_ruim" disabled={isReadOnly} />
-              <Label htmlFor="muito_ruim">Muito Ruim</Label>
+              <Label htmlFor="muito_ruim" className={isReadOnly ? "text-muted-foreground" : ""}>Muito Ruim</Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="ruim" id="ruim" disabled={isReadOnly} />
-              <Label htmlFor="ruim">Ruim</Label>
+              <Label htmlFor="ruim" className={isReadOnly ? "text-muted-foreground" : ""}>Ruim</Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="boa" id="boa" disabled={isReadOnly} />
-              <Label htmlFor="boa">Boa</Label>
+              <Label htmlFor="boa" className={isReadOnly ? "text-muted-foreground" : ""}>Boa</Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="muito_boa" id="muito_boa" disabled={isReadOnly} />
-              <Label htmlFor="muito_boa">Muito Boa</Label>
+              <Label htmlFor="muito_boa" className={isReadOnly ? "text-muted-foreground" : ""}>Muito Boa</Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="excelente" id="excelente" disabled={isReadOnly} />
-              <Label htmlFor="excelente">Excelente</Label>
+              <Label htmlFor="excelente" className={isReadOnly ? "text-muted-foreground" : ""}>Excelente</Label>
             </div>
           </RadioGroup>
         </CardContent>
@@ -436,7 +468,7 @@ const PatientAssessment = () => {
                   <span className="text-xs text-muted-foreground w-24">Nada verdadeira</span>
                   <Slider
                     value={[answers[`q${questionNumber}`] || 0]}
-                    onValueChange={(value) => handleSliderChange(questionNumber, value)}
+                    onValueChange={(value) => editMode && handleSliderChange(questionNumber, value)}
                     max={100}
                     step={10}
                     className="flex-1"
@@ -465,7 +497,7 @@ const PatientAssessment = () => {
           <Textarea
             placeholder="Adicione observações sobre esta avaliação..."
             value={notes}
-            onChange={(e) => handleNotesChange(e.target.value)}
+            onChange={(e) => editMode && handleNotesChange(e.target.value)}
             rows={4}
             disabled={isReadOnly}
           />
@@ -477,16 +509,16 @@ const PatientAssessment = () => {
         <Button variant="outline" onClick={() => navigate(`/patients/${patientId}/session/${recordId}/roadmap`)}>
           Voltar
         </Button>
-        {editMode && (
-          <Button 
-            onClick={handleSave} 
-            disabled={saving || loading || progress < 100}
-            className="min-w-32"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? "Salvando..." : existingAssessment ? "Salvar Alterações" : "Salvar Avaliação"}
-          </Button>
-        )}
+        <Button 
+          onClick={handleSave} 
+          disabled={saving || (editMode && progress < 100)}
+          className="min-w-32"
+        >
+          <Save className="h-4 w-4 mr-2" />
+          {saving ? "Salvando..." : 
+           !editMode ? "Editar" : 
+           existingAssessment ? "Salvar Alterações" : "Salvar Avaliação"}
+        </Button>
       </div>
       
       {editMode && progress < 100 && (
