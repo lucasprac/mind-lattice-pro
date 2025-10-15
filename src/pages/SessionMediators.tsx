@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, X, Save } from "lucide-react";
+import { ArrowLeft, Plus, X, Save, Network, Info } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
 import { usePatientNetwork } from "@/hooks/usePatientNetwork";
 import { usePatientMediators } from "@/hooks/usePatientMediators";
 
-const EEMM_STRUCTURE = {
+const EEMM_DIMENSIONS = {
   cognition: {
     name: "Cognição",
     color: "bg-blue-50 border-blue-200",
@@ -24,7 +24,7 @@ const EEMM_STRUCTURE = {
     mediators: ["Regulação Emocional", "Discriminação", "Expressão", "Empatia", "Awareness"]
   },
   attention: {
-    name: "Atenção",
+    name: "Atenção & Consciencia",
     color: "bg-yellow-50 border-yellow-200",
     textColor: "text-yellow-900",
     mediators: ["Atenção Focada", "Atenção Sustentada", "Flexibilidade", "Orientação", "Vigilância"]
@@ -55,22 +55,22 @@ const SessionMediators = () => {
   const { patients } = usePatients();
   const { records } = useRecords(patientId);
   
-  // Get network data from this session only
-  const { networkData } = usePatientNetwork(patientId || "", recordId, false);
+  // Get network data and filter processes from this session
+  const { getProcessesFromSession } = usePatientNetwork(patientId || "", recordId, true);
   const { mediatorProcesses, loading, saveMediators } = usePatientMediators(
     patientId || "",
     recordId
   );
   
   const [localMediators, setLocalMediators] = useState(mediatorProcesses);
-  const [newProcess, setNewProcess] = useState("");
   const [selectedMediator, setSelectedMediator] = useState<{ dimension: string; mediator: string } | null>(null);
   
   const patient = patients.find(p => p.id === patientId);
   const record = records.find(r => r.id === recordId);
   
-  // Get available processes from this session's network
-  const availableProcesses = networkData.nodes.map(node => node.text);
+  // Get ONLY processes created in this session
+  const sessionProcesses = getProcessesFromSession(recordId || "");
+  console.log("Processos desta sessão:", sessionProcesses);
 
   // Update local state when mediator processes load
   useEffect(() => {
@@ -102,7 +102,6 @@ const SessionMediators = () => {
       }
       return updated;
     });
-    setNewProcess("");
     setSelectedMediator(null);
   };
 
@@ -143,7 +142,7 @@ const SessionMediators = () => {
       </div>
 
       {/* Journey Progress Card */}
-      <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+      <Card className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -155,8 +154,8 @@ const SessionMediators = () => {
           </div>
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Processos da Rede:</span>
-              <Badge variant="outline" className="bg-white">{availableProcesses.length}</Badge>
+              <span className="text-muted-foreground">Processos desta Sessão:</span>
+              <Badge variant="outline" className="bg-white">{sessionProcesses.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">Organizados em Mediadores:</span>
@@ -166,37 +165,67 @@ const SessionMediators = () => {
         </div>
       </Card>
 
-      {/* Available Processes */}
-      {availableProcesses.length > 0 && (
+      {/* Session Processes Info */}
+      {sessionProcesses.length > 0 ? (
         <Card className="p-6">
-          <h3 className="font-semibold mb-4">Processos Disponíveis da Rede</h3>
-          <div className="flex flex-wrap gap-2">
-            {availableProcesses.map((process, i) => (
+          <div className="flex items-center gap-2 mb-4">
+            <Network className="h-5 w-5 text-blue-600" />
+            <h3 className="font-semibold">Processos Criados na Etapa 2 (desta sessão)</h3>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {sessionProcesses.map((process, i) => (
               <Badge
                 key={i}
                 variant="outline"
-                className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                className={`cursor-pointer transition-colors ${
+                  selectedMediator 
+                    ? "hover:bg-primary hover:text-primary-foreground" 
+                    : "cursor-default"
+                }`}
                 onClick={() => {
                   if (selectedMediator) {
-                    addProcessToMediator(selectedMediator.dimension, selectedMediator.mediator, process);
+                    addProcessToMediator(selectedMediator.dimension, selectedMediator.mediator, process.text);
                   }
                 }}
               >
-                {process}
+                {process.text}
               </Badge>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground mt-4">
+          <p className="text-sm text-muted-foreground">
             {selectedMediator 
-              ? `Clique em um processo para adicionar ao mediador "${selectedMediator.mediator}"` 
-              : "Selecione um mediador abaixo para adicionar processos"}
+              ? `Clique em um processo para adicionar ao mediador "${selectedMediator.mediator}" na dimensão ${EEMM_DIMENSIONS[selectedMediator.dimension as keyof typeof EEMM_DIMENSIONS].name}` 
+              : "Selecione um mediador abaixo para começar a organizar os processos"}
           </p>
+        </Card>
+      ) : (
+        <Card className="p-6 border-amber-200 bg-amber-50">
+          <div className="flex items-center gap-3">
+            <Info className="h-5 w-5 text-amber-600" />
+            <div>
+              <h3 className="font-semibold text-amber-800">Nenhum Processo Encontrado</h3>
+              <p className="text-sm text-amber-700">
+                Não foram encontrados processos criados na Etapa 2 (Análise de Rede) desta sessão.
+                Volte à etapa anterior para criar processos na rede.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate(`/patients/${patientId}/session/${recordId}/network`)}
+              className="gap-2"
+            >
+              <Network className="h-4 w-4" />
+              Ir para Análise de Rede
+            </Button>
+          </div>
         </Card>
       )}
 
       {/* EEMM Dimensions */}
       <div className="space-y-6">
-        {Object.entries(EEMM_STRUCTURE).map(([dimensionKey, dimension]) => (
+        {Object.entries(EEMM_DIMENSIONS).map(([dimensionKey, dimension]) => (
           <Card key={dimensionKey} className={`p-6 ${dimension.color}`}>
             <h2 className={`text-2xl font-bold mb-4 ${dimension.textColor}`}>{dimension.name}</h2>
             
@@ -208,10 +237,12 @@ const SessionMediators = () => {
                 return (
                   <Card
                     key={mediator}
-                    className={`p-4 bg-white cursor-pointer transition-all ${
-                      isSelected ? "ring-2 ring-primary" : ""
+                    className={`p-4 bg-white cursor-pointer transition-all hover:shadow-md ${
+                      isSelected ? "ring-2 ring-primary shadow-lg" : ""
                     }`}
-                    onClick={() => setSelectedMediator({ dimension: dimensionKey, mediator })}
+                    onClick={() => setSelectedMediator(
+                      isSelected ? null : { dimension: dimensionKey, mediator }
+                    )}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-sm">{mediator}</h3>
@@ -225,7 +256,7 @@ const SessionMediators = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0"
+                            className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
                             onClick={(e) => {
                               e.stopPropagation();
                               removeProcess(dimensionKey, mediator, process);
@@ -236,29 +267,10 @@ const SessionMediators = () => {
                         </div>
                       ))}
                       
-                      {isSelected && (
-                        <div className="flex gap-2 mt-3">
-                          <Input
-                            placeholder="Novo processo..."
-                            value={newProcess}
-                            onChange={(e) => setNewProcess(e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === "Enter" && newProcess.trim()) {
-                                addProcessToMediator(dimensionKey, mediator, newProcess.trim());
-                              }
-                            }}
-                          />
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              if (newProcess.trim()) {
-                                addProcessToMediator(dimensionKey, mediator, newProcess.trim());
-                              }
-                            }}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      {processes.length === 0 && (
+                        <p className="text-xs text-muted-foreground italic p-2">
+                          Nenhum processo atribuído
+                        </p>
                       )}
                     </div>
                   </Card>
@@ -271,10 +283,18 @@ const SessionMediators = () => {
 
       {/* Save Button */}
       <Card className="p-6">
-        <Button size="lg" className="w-full" onClick={handleSave} disabled={loading}>
-          <Save className="h-5 w-5 mr-2" />
-          Salvar Mediadores
-        </Button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold">Salvar Organização de Mediadores</h3>
+            <p className="text-sm text-muted-foreground">
+              Os mediadores definidos aqui serão utilizados na Etapa 4 (Análise Funcional)
+            </p>
+          </div>
+          <Button size="lg" onClick={handleSave} disabled={loading} className="gap-2">
+            <Save className="h-5 w-5" />
+            Salvar e Continuar
+          </Button>
+        </div>
       </Card>
     </div>
   );
