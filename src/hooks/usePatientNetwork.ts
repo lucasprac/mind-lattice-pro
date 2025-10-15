@@ -93,7 +93,7 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
         setNetworkData({ nodes: [], connections: [] });
       }
     } catch (err) {
-      console.error("Erro inesperado:", err);
+      console.error("Erro inesperado ao buscar rede:", err);
     } finally {
       setLoading(false);
     }
@@ -101,6 +101,7 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
 
   const saveNetwork = async (data: NetworkData) => {
     if (!user?.id || !patientId) {
+      console.error("User or patient ID missing:", { userId: user?.id, patientId });
       toast.error("Usuário não autenticado");
       return false;
     }
@@ -129,8 +130,15 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
         connections: connectionsWithSessionTracking,
       };
 
+      console.log("Tentando salvar rede com dados:", { 
+        patientId, 
+        therapistId: user.id, 
+        nodesCount: nodesWithSessionTracking.length, 
+        connectionsCount: connectionsWithSessionTracking.length 
+      });
+
       // Check if general network already exists
-      const { data: existingData } = await supabase
+      const { data: existingData, error: checkError } = await supabase
         .from("patient_networks")
         .select("id")
         .eq("patient_id", patientId)
@@ -138,37 +146,48 @@ export const usePatientNetwork = (patientId: string, currentSessionId?: string |
         .is("record_id", null)
         .single();
 
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error("Erro ao verificar rede existente:", checkError);
+        toast.error(`Erro ao verificar rede: ${checkError.message}`);
+        return false;
+      }
+
       if (existingData) {
         // Update existing general network
-        const { error } = await supabase
+        console.log("Atualizando rede existente com ID:", existingData.id);
+        const { error: updateError } = await supabase
           .from("patient_networks")
           .update(saveData)
           .eq("id", existingData.id);
 
-        if (error) {
-          console.error("Erro ao atualizar rede:", error);
-          toast.error("Erro ao salvar rede");
+        if (updateError) {
+          console.error("Erro ao atualizar rede:", updateError);
+          toast.error(`Erro ao atualizar rede: ${updateError.message}`);
           return false;
         }
+        console.log("Rede atualizada com sucesso!");
       } else {
         // Create new general network
-        const { error } = await supabase
+        console.log("Criando nova rede");
+        const { error: insertError, data: insertData } = await supabase
           .from("patient_networks")
-          .insert([saveData]);
+          .insert([saveData])
+          .select();
 
-        if (error) {
-          console.error("Erro ao criar rede:", error);
-          toast.error("Erro ao salvar rede");
+        if (insertError) {
+          console.error("Erro ao criar rede:", insertError);
+          toast.error(`Erro ao criar rede: ${insertError.message}`);
           return false;
         }
+        console.log("Rede criada com sucesso:", insertData);
       }
 
       toast.success("Rede do paciente salva com sucesso");
       await fetchNetwork();
       return true;
     } catch (err) {
-      console.error("Erro inesperado:", err);
-      toast.error("Erro inesperado ao salvar rede");
+      console.error("Erro inesperado ao salvar rede:", err);
+      toast.error(`Erro inesperado: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
       return false;
     }
   };
