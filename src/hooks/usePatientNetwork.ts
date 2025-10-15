@@ -11,7 +11,9 @@ export interface ProcessNode {
   width: number;
   height: number;
   text: string;
-  // Removed: dimension and level - these are now handled in Mediators step
+  // Internal session tracking - not displayed to user but used for Mediators and Functional Analysis
+  session_id?: string;
+  created_in_session?: string;
 }
 
 type ConnectionType = 'maladaptive' | 'unchanged' | 'adaptive';
@@ -26,6 +28,9 @@ export interface Connection {
   ambivalent: boolean;
   startMarker: MarkerType;
   endMarker: MarkerType;
+  // Internal session tracking
+  session_id?: string;
+  created_in_session?: string;
 }
 
 export interface NetworkData {
@@ -33,7 +38,7 @@ export interface NetworkData {
   connections: Connection[];
 }
 
-export const usePatientNetwork = (patientId: string, recordId?: string | null, isGeneral = false) => {
+export const usePatientNetwork = (patientId: string, currentSessionId?: string | null, isGeneral = false) => {
   const [networkData, setNetworkData] = useState<NetworkData>({ nodes: [], connections: [] });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -47,22 +52,14 @@ export const usePatientNetwork = (patientId: string, recordId?: string | null, i
     try {
       setLoading(true);
       
-      // Determine which network to load
-      const isSessionSpecific = recordId && !isGeneral;
-      
-      let query = supabase
+      // Always fetch general network (record_id = null)
+      const { data, error } = await supabase
         .from("patient_networks")
         .select("*")
         .eq("patient_id", patientId)
-        .eq("therapist_id", user.id);
-
-      if (isSessionSpecific) {
-        query = query.eq("record_id", recordId);
-      } else {
-        query = query.is("record_id", null); // General network
-      }
-
-      const { data, error } = await query.single();
+        .eq("therapist_id", user.id)
+        .is("record_id", null) // Always general network
+        .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
         console.error("Erro ao buscar rede:", error);
@@ -70,18 +67,25 @@ export const usePatientNetwork = (patientId: string, recordId?: string | null, i
       }
 
       if (data) {
-        // Clean and adapt existing data to new interface
+        // Clean and adapt existing data to new interface with session tracking
         const nodes = data.nodes?.map((node: any) => ({
           id: node.id,
           x: node.x || 0,
           y: node.y || 0,
           width: node.width || 200,
           height: node.height || 80,
-          text: node.text || ''
-          // Removed: dimension, level, intensity, frequency - moved to Mediators
+          text: node.text || '',
+          // Preserve session tracking info if it exists
+          session_id: node.session_id,
+          created_in_session: node.created_in_session
         })) || [];
         
-        const connections = data.connections || [];
+        const connections = data.connections?.map((conn: any) => ({
+          ...conn,
+          // Preserve session tracking info if it exists
+          session_id: conn.session_id,
+          created_in_session: conn.created_in_session
+        })) || [];
         
         setNetworkData({ nodes, connections });
       } else {
@@ -102,32 +106,40 @@ export const usePatientNetwork = (patientId: string, recordId?: string | null, i
     }
 
     try {
-      const isSessionSpecific = recordId && !isGeneral;
+      // Add session tracking to new nodes and connections
+      const nodesWithSessionTracking = data.nodes.map(node => ({
+        ...node,
+        // Add session tracking for new nodes (those without existing session_id)
+        session_id: node.session_id || currentSessionId,
+        created_in_session: node.created_in_session || currentSessionId
+      }));
+
+      const connectionsWithSessionTracking = data.connections.map(conn => ({
+        ...conn,
+        // Add session tracking for new connections (those without existing session_id)
+        session_id: conn.session_id || currentSessionId,
+        created_in_session: conn.created_in_session || currentSessionId
+      }));
+
       const saveData = {
         patient_id: patientId,
         therapist_id: user.id,
-        record_id: isSessionSpecific ? recordId : null,
-        nodes: data.nodes,
-        connections: data.connections,
+        record_id: null, // Always save to general network
+        nodes: nodesWithSessionTracking,
+        connections: connectionsWithSessionTracking,
       };
 
-      // Check if network already exists
-      let query = supabase
+      // Check if general network already exists
+      const { data: existingData } = await supabase
         .from("patient_networks")
         .select("id")
         .eq("patient_id", patientId)
-        .eq("therapist_id", user.id);
-
-      if (isSessionSpecific) {
-        query = query.eq("record_id", recordId);
-      } else {
-        query = query.is("record_id", null);
-      }
-
-      const { data: existingData } = await query.single();
+        .eq("therapist_id", user.id)
+        .is("record_id", null)
+        .single();
 
       if (existingData) {
-        // Update existing network
+        // Update existing general network
         const { error } = await supabase
           .from("patient_networks")
           .update(saveData)
@@ -139,7 +151,7 @@ export const usePatientNetwork = (patientId: string, recordId?: string | null, i
           return false;
         }
       } else {
-        // Create new network
+        // Create new general network
         const { error } = await supabase
           .from("patient_networks")
           .insert([saveData]);
@@ -151,7 +163,7 @@ export const usePatientNetwork = (patientId: string, recordId?: string | null, i
         }
       }
 
-      toast.success(isGeneral ? "Rede geral salva" : "Rede da sessão salva");
+      toast.success("Rede do paciente salva com sucesso");
       await fetchNetwork();
       return true;
     } catch (err) {
@@ -161,14 +173,28 @@ export const usePatientNetwork = (patientId: string, recordId?: string | null, i
     }
   };
 
+  // Helper function to get processes from current session (for Mediators and Functional Analysis)
+  const getProcessesFromSession = (sessionId: string) => {
+    return networkData.nodes.filter(node => 
+      node.created_in_session === sessionId || node.session_id === sessionId
+    );
+  };
+
+  // Helper function to get all processes (for general use)
+  const getAllProcesses = () => {
+    return networkData.nodes;
+  };
+
   useEffect(() => {
     fetchNetwork();
-  }, [user?.id, patientId, recordId, isGeneral]);
+  }, [user?.id, patientId]);
 
   return {
     networkData,
     loading,
     saveNetwork,
     refetch: fetchNetwork,
+    getProcessesFromSession,
+    getAllProcesses,
   };
 };
