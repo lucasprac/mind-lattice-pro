@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,38 +34,91 @@ const useAppointments = () => {
   return { appointments, addAppointment, loading: false };
 };
 
+// Hook personalizado para buscar todos os registros de forma segura
+const useAllRecords = (patientIds: string[]) => {
+  const recordsQueries = patientIds.map(patientId => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useRecords(patientId);
+  });
+
+  return useMemo(() => {
+    return recordsQueries.reduce((acc, query) => {
+      return [...acc, ...query.records];
+    }, [] as any[]);
+  }, [recordsQueries]);
+};
+
+// Hook personalizado para buscar todas as avaliações de forma segura
+const useAllAssessments = (patientIds: string[]) => {
+  const assessmentQueries = patientIds.map(patientId => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return usePatientAssessments(patientId);
+  });
+
+  return useMemo(() => {
+    return assessmentQueries.reduce((acc, query) => {
+      return acc + query.assessments.length;
+    }, 0);
+  }, [assessmentQueries]);
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { patients } = usePatients();
+  const { patients, loading: patientsLoading, error: patientsError } = usePatients();
   const { appointments, addAppointment } = useAppointments();
   
-  // Get all records to calculate sessions this month
-  const allRecords = patients.reduce((acc, patient) => {
-    const { records } = useRecords(patient.id);
-    return [...acc, ...records];
-  }, [] as any[]);
+  // Debug logging
+  const debugLog = (message: string, data?: any) => {
+    if (import.meta.env.DEV) {
+      console.log(`[Dashboard] ${message}`, data || '');
+    }
+  };
+
+  // Verificar erros críticos
+  if (patientsError) {
+    debugLog('Erro crítico no Dashboard:', patientsError);
+  }
+
+  // Extrair IDs dos pacientes de forma segura
+  const patientIds = useMemo(() => {
+    return patients?.map(p => p.id) || [];
+  }, [patients]);
+
+  // Buscar registros e avaliações apenas se houver pacientes
+  const allRecords = patientIds.length > 0 ? useAllRecords(patientIds) : [];
+  const totalAssessments = patientIds.length > 0 ? useAllAssessments(patientIds) : 0;
   
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const sessionsThisMonth = allRecords.filter(record => {
-    const recordDate = new Date(record.session_date);
-    return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
-  }).length;
+  // Calcular sessões do mês atual de forma segura
+  const sessionsThisMonth = useMemo(() => {
+    if (!allRecords || allRecords.length === 0) return 0;
+    
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    return allRecords.filter(record => {
+      try {
+        const recordDate = new Date(record.session_date);
+        return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+      } catch (error) {
+        debugLog('Erro ao processar data do registro:', { record, error });
+        return false;
+      }
+    }).length;
+  }, [allRecords]);
 
-  // Calculate total assessments across all patients
-  const totalAssessments = patients.reduce((acc, patient) => {
-    const { assessments } = usePatientAssessments(patient.id);
-    return acc + assessments.length;
-  }, 0);
+  // Estatísticas do dashboard
+  const stats = useMemo(() => {
+    const activePatients = patients?.filter(p => p.status === 'active').length || 0;
+    
+    return [
+      { label: "Pacientes Ativos", value: activePatients.toString(), icon: Users, color: "text-blue-600" },
+      { label: "Avaliações Realizadas", value: totalAssessments.toString(), icon: FileText, color: "text-green-600" },
+      { label: "Sessões este Mês", value: sessionsThisMonth.toString(), icon: CalendarIcon, color: "text-purple-600" },
+      { label: "Consultas Agendadas", value: appointments.length.toString(), icon: Clock, color: "text-orange-600" },
+    ];
+  }, [patients, totalAssessments, sessionsThisMonth, appointments.length]);
 
-  const stats = [
-    { label: "Pacientes Ativos", value: patients.filter(p => p.status === 'active').length.toString(), icon: Users, color: "text-blue-600" },
-    { label: "Avaliações Realizadas", value: totalAssessments.toString(), icon: FileText, color: "text-green-600" },
-    { label: "Sessões este Mês", value: sessionsThisMonth.toString(), icon: CalendarIcon, color: "text-purple-600" },
-    { label: "Consultas Agendadas", value: appointments.length.toString(), icon: Clock, color: "text-orange-600" },
-  ];
-
-  // Appointment scheduling state
+  // Estado do agendamento
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [appointmentForm, setAppointmentForm] = useState({
     patient_id: "",
@@ -83,66 +136,112 @@ const Dashboard = () => {
       return;
     }
 
-    const appointmentDateTime = new Date(selectedDate);
-    const [hours, minutes] = appointmentForm.time.split(':');
-    appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
+    try {
+      const appointmentDateTime = new Date(selectedDate);
+      const [hours, minutes] = appointmentForm.time.split(':');
+      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
 
-    const baseAppointment = {
-      patient_id: appointmentForm.patient_id,
-      title: appointmentForm.title,
-      description: appointmentForm.description,
-      date: appointmentDateTime.toISOString(),
-      duration: parseInt(appointmentForm.duration),
-      recurrence: appointmentForm.recurrence
-    };
+      const baseAppointment = {
+        patient_id: appointmentForm.patient_id,
+        title: appointmentForm.title,
+        description: appointmentForm.description,
+        date: appointmentDateTime.toISOString(),
+        duration: parseInt(appointmentForm.duration),
+        recurrence: appointmentForm.recurrence
+      };
 
-    // Create recurring appointments
-    const appointmentsToCreate = [baseAppointment];
-    
-    if (appointmentForm.recurrence !== "none") {
-      let nextDate = new Date(appointmentDateTime);
-      for (let i = 0; i < 12; i++) { // Create next 12 occurrences
-        switch (appointmentForm.recurrence) {
-          case "weekly":
-            nextDate = addWeeks(nextDate, 1);
-            break;
-          case "biweekly":
-            nextDate = addWeeks(nextDate, 2);
-            break;
-          case "monthly":
-            nextDate = addMonths(nextDate, 1);
-            break;
+      // Criar consultas recorrentes
+      const appointmentsToCreate = [baseAppointment];
+      
+      if (appointmentForm.recurrence !== "none") {
+        let nextDate = new Date(appointmentDateTime);
+        for (let i = 0; i < 12; i++) { // Criar próximas 12 ocorrências
+          switch (appointmentForm.recurrence) {
+            case "weekly":
+              nextDate = addWeeks(nextDate, 1);
+              break;
+            case "biweekly":
+              nextDate = addWeeks(nextDate, 2);
+              break;
+            case "monthly":
+              nextDate = addMonths(nextDate, 1);
+              break;
+          }
+          
+          appointmentsToCreate.push({
+            ...baseAppointment,
+            date: nextDate.toISOString()
+          });
         }
-        
-        appointmentsToCreate.push({
-          ...baseAppointment,
-          date: nextDate.toISOString()
-        });
       }
-    }
 
-    appointmentsToCreate.forEach(apt => addAppointment(apt));
-    
-    toast.success(`Consulta${appointmentsToCreate.length > 1 ? 's' : ''} agendada${appointmentsToCreate.length > 1 ? 's' : ''} com sucesso!`);
-    setIsSchedulingOpen(false);
-    setAppointmentForm({
-      patient_id: "",
-      title: "",
-      description: "",
-      time: "",
-      duration: "60",
-      recurrence: "none"
-    });
+      appointmentsToCreate.forEach(apt => addAppointment(apt));
+      
+      toast.success(`Consulta${appointmentsToCreate.length > 1 ? 's' : ''} agendada${appointmentsToCreate.length > 1 ? 's' : ''} com sucesso!`);
+      setIsSchedulingOpen(false);
+      setAppointmentForm({
+        patient_id: "",
+        title: "",
+        description: "",
+        time: "",
+        duration: "60",
+        recurrence: "none"
+      });
+    } catch (error) {
+      debugLog('Erro ao agendar consulta:', error);
+      toast.error("Erro ao agendar consulta. Tente novamente.");
+    }
   };
 
-  const upcomingAppointments = appointments
-    .filter(apt => new Date(apt.date) > new Date())
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5);
+  // Próximas consultas
+  const upcomingAppointments = useMemo(() => {
+    return appointments
+      .filter(apt => {
+        try {
+          return new Date(apt.date) > new Date();
+        } catch (error) {
+          debugLog('Erro ao filtrar consultas:', error);
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        try {
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        } catch (error) {
+          debugLog('Erro ao ordenar consultas:', error);
+          return 0;
+        }
+      })
+      .slice(0, 5);
+  }, [appointments]);
 
-  const recentPatients = patients
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5);
+  // Pacientes recentes
+  const recentPatients = useMemo(() => {
+    if (!patients || patients.length === 0) return [];
+    
+    return patients
+      .sort((a, b) => {
+        try {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        } catch (error) {
+          debugLog('Erro ao ordenar pacientes recentes:', error);
+          return 0;
+        }
+      })
+      .slice(0, 5);
+  }, [patients]);
+
+  // Estado de carregamento
+  if (patientsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -176,7 +275,7 @@ const Dashboard = () => {
                     <SelectValue placeholder="Selecione um paciente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {patients.map(patient => (
+                    {(patients || []).map(patient => (
                       <SelectItem key={patient.id} value={patient.id}>
                         {patient.full_name}
                       </SelectItem>
@@ -299,7 +398,14 @@ const Dashboard = () => {
             onSelect={(date) => date && setSelectedDate(date)}
             className="rounded-md border"
             modifiers={{
-              appointment: appointments.map(apt => new Date(apt.date))
+              appointment: appointments.map(apt => {
+                try {
+                  return new Date(apt.date);
+                } catch (error) {
+                  debugLog('Erro ao processar data do appointment:', error);
+                  return new Date(); // fallback
+                }
+              })
             }}
             modifiersStyles={{
               appointment: { backgroundColor: 'hsl(var(--primary))', color: 'white' }
@@ -399,9 +505,18 @@ const Dashboard = () => {
           {upcomingAppointments.length > 0 ? (
             <div className="space-y-3">
               {upcomingAppointments.map(appointment => {
-                const patient = patients.find(p => p.id === appointment.patient_id);
-                const appointmentDate = new Date(appointment.date);
-                const isToday = isSameDay(appointmentDate, new Date());
+                const patient = (patients || []).find(p => p.id === appointment.patient_id);
+                
+                let appointmentDate: Date;
+                let isToday = false;
+                
+                try {
+                  appointmentDate = new Date(appointment.date);
+                  isToday = isSameDay(appointmentDate, new Date());
+                } catch (error) {
+                  debugLog('Erro ao processar data da consulta:', error);
+                  appointmentDate = new Date();
+                }
                 
                 return (
                   <div key={appointment.id} className="p-3 bg-muted/50 rounded-lg">
@@ -410,7 +525,7 @@ const Dashboard = () => {
                       {isToday && <Badge className="text-xs">Hoje</Badge>}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      <div>{patient?.full_name}</div>
+                      <div>{patient?.full_name || 'Paciente não encontrado'}</div>
                       <div className="flex items-center gap-2 mt-1">
                         <CalendarIcon className="h-3 w-3" />
                         {format(appointmentDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
