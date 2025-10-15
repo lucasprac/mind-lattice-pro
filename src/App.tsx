@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { AuthProvider } from "./hooks/useAuth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -36,6 +37,11 @@ const queryClient = new QueryClient({
         return failureCount < 3;
       },
       staleTime: 5 * 60 * 1000, // 5 minutos
+      refetchOnWindowFocus: false, // Evitar refetch desnecessário
+      refetchOnMount: true,
+    },
+    mutations: {
+      retry: 1, // Tentar apenas 1 vez em mutações
     },
   },
 });
@@ -44,52 +50,273 @@ const App = () => {
   // Log de debug para rotas em desenvolvimento
   if (import.meta.env.DEV) {
     console.log('App rendered - current path:', window.location.pathname);
+    console.log('Environment:', {
+      mode: import.meta.env.MODE,
+      prod: import.meta.env.PROD,
+      dev: import.meta.env.DEV
+    });
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Rotas públicas */}
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              
-              {/* Rotas principais protegidas */}
-              <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-              <Route path="/patients" element={<ProtectedRoute><AppLayout><Patients /></AppLayout></ProtectedRoute>} />
-              
-              {/* Rotas de pacientes */}
-              <Route path="/patients/:patientId" element={<ProtectedRoute><AppLayout><PatientRoadmapList /></AppLayout></ProtectedRoute>} />
-              <Route path="/patients/:patientId/session/new" element={<ProtectedRoute><AppLayout><PatientSession /></AppLayout></ProtectedRoute>} />
-              <Route path="/patients/:patientId/session/:recordId" element={<ProtectedRoute><AppLayout><PatientSession /></AppLayout></ProtectedRoute>} />
-              
-              {/* Rotas de sessões */}
-              <Route path="/patients/:patientId/session/:recordId/roadmap" element={<ProtectedRoute><AppLayout><SessionRoadmap /></AppLayout></ProtectedRoute>} />
-              <Route path="/patients/:patientId/session/:recordId/assessment" element={<ProtectedRoute><AppLayout><PatientAssessment /></AppLayout></ProtectedRoute>} />
-              <Route path="/patients/:patientId/session/:recordId/network" element={<ProtectedRoute><AppLayout><SessionNetwork /></AppLayout></ProtectedRoute>} />
-              <Route path="/patients/:patientId/session/:recordId/mediators" element={<ProtectedRoute><AppLayout><SessionMediators /></AppLayout></ProtectedRoute>} />
-              <Route path="/patients/:patientId/session/:recordId/functional" element={<ProtectedRoute><AppLayout><PatientFunctionalAnalysis /></AppLayout></ProtectedRoute>} />
-              
-              {/* Rotas de ferramentas */}
-              <Route path="/eemm" element={<ProtectedRoute><AppLayout><EEMMMatrix /></AppLayout></ProtectedRoute>} />
-              <Route path="/networks" element={<ProtectedRoute><AppLayout><Networks /></AppLayout></ProtectedRoute>} />
-              <Route path="/mediators" element={<ProtectedRoute><AppLayout><Mediators /></AppLayout></ProtectedRoute>} />
-              <Route path="/functional-analysis" element={<ProtectedRoute><AppLayout><FunctionalAnalysis /></AppLayout></ProtectedRoute>} />
-              <Route path="/interventions" element={<ProtectedRoute><AppLayout><Interventions /></AppLayout></ProtectedRoute>} />
-              <Route path="/records" element={<ProtectedRoute><AppLayout><Records /></AppLayout></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
-              
-              {/* Rota catch-all para 404 - DEVE SER A ÚNIMA */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ErrorBoundary>
+          <AuthProvider>
+            <ErrorBoundary>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <ErrorBoundary>
+                    <Routes>
+                      {/* Rotas públicas */}
+                      <Route 
+                        path="/" 
+                        element={
+                          <ErrorBoundary>
+                            <Index />
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/auth" 
+                        element={
+                          <ErrorBoundary>
+                            <Auth />
+                          </ErrorBoundary>
+                        } 
+                      />
+                      
+                      {/* Rotas principais protegidas */}
+                      <Route 
+                        path="/dashboard" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <Dashboard />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/patients" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <Patients />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      
+                      {/* Rotas de pacientes */}
+                      <Route 
+                        path="/patients/:patientId" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <PatientRoadmapList />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/patients/:patientId/session/new" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <PatientSession />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/patients/:patientId/session/:recordId" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <PatientSession />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      
+                      {/* Rotas de sessões */}
+                      <Route 
+                        path="/patients/:patientId/session/:recordId/roadmap" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <SessionRoadmap />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/patients/:patientId/session/:recordId/assessment" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <PatientAssessment />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/patients/:patientId/session/:recordId/network" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <SessionNetwork />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/patients/:patientId/session/:recordId/mediators" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <SessionMediators />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/patients/:patientId/session/:recordId/functional" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <PatientFunctionalAnalysis />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      
+                      {/* Rotas de ferramentas */}
+                      <Route 
+                        path="/eemm" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <EEMMMatrix />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/networks" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <Networks />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/mediators" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <Mediators />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/functional-analysis" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <FunctionalAnalysis />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/interventions" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <Interventions />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/records" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <Records />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      <Route 
+                        path="/settings" 
+                        element={
+                          <ErrorBoundary>
+                            <ProtectedRoute>
+                              <AppLayout>
+                                <Settings />
+                              </AppLayout>
+                            </ProtectedRoute>
+                          </ErrorBoundary>
+                        } 
+                      />
+                      
+                      {/* Rota catch-all para 404 - DEVE SER A ÚNIMA */}
+                      <Route 
+                        path="*" 
+                        element={
+                          <ErrorBoundary>
+                            <NotFound />
+                          </ErrorBoundary>
+                        } 
+                      />
+                    </Routes>
+                  </ErrorBoundary>
+                </BrowserRouter>
+              </TooltipProvider>
+            </ErrorBoundary>
+          </AuthProvider>
+        </ErrorBoundary>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
