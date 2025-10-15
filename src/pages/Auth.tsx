@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Loader2, CheckCircle } from "lucide-react";
+import { Brain, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/useToast";
-import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 
 const authSchema = z.object({
@@ -20,78 +19,23 @@ const authSchema = z.object({
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
-  const { user, loading } = useAuth();
 
-  // Página de destino após login
-  const redirectTo = (location.state as any)?.from || "/dashboard";
-
-  // Debug logging
-  const debugLog = (message: string, data?: any) => {
-    if (import.meta.env.DEV) {
-      console.log(`[Auth] ${message}`, data || '');
-    }
-  };
-
-  // Verificar se usuário já está autenticado
+  // Check if user is already authenticated
   useEffect(() => {
-    const checkAndRedirectUser = async () => {
-      if (!loading && user && !isRedirecting) {
-        debugLog('Usuário já autenticado, redirecionando...', { 
-          userId: user.id, 
-          redirectTo 
-        });
-        
-        setIsRedirecting(true);
-        
-        // Pequeno delay para evitar tela branca
-        setTimeout(() => {
-          navigate(redirectTo, { replace: true });
-        }, 500);
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/dashboard");
       }
     };
-
-    checkAndRedirectUser();
-  }, [user, loading, navigate, redirectTo, isRedirecting]);
-
-  const handleSuccessfulAuth = async (message: string) => {
-    try {
-      debugLog('Login bem-sucedido, iniciando redirecionamento...');
-      
-      toast({
-        title: "Sucesso!",
-        description: message,
-      });
-
-      setIsRedirecting(true);
-      
-      // Aguardar um momento para o estado ser atualizado
-      setTimeout(() => {
-        debugLog('Executando redirecionamento para:', redirectTo);
-        navigate(redirectTo, { replace: true });
-      }, 1000);
-      
-    } catch (error) {
-      debugLog('Erro no redirecionamento:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro no redirecionamento",
-        description: "Tente recarregar a página",
-      });
-      setIsLoading(false);
-      setIsRedirecting(false);
-    }
-  };
+    checkUser();
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isLoading || isRedirecting) return;
-    
     setIsLoading(true);
-    debugLog('Iniciando processo de login...');
 
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
@@ -100,32 +44,12 @@ const Auth = () => {
     try {
       const validation = authSchema.omit({ fullName: true }).parse({ email, password });
       
-      debugLog('Dados validados, fazendo login no Supabase...');
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: validation.email,
         password: validation.password,
       });
 
       if (error) {
-        debugLog('Erro no login:', error);
-        throw error;
-      }
-
-      if (data.user) {
-        debugLog('Login realizado com sucesso:', { userId: data.user.id });
-        await handleSuccessfulAuth("Login realizado com sucesso! Redirecionando...");
-      }
-    } catch (error: any) {
-      debugLog('Erro capturado:', error);
-      setIsLoading(false);
-      
-      if (error instanceof z.ZodError) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: error.errors[0]?.message || "Verifique os dados inseridos",
-        });
-      } else {
         toast({
           variant: "destructive",
           title: "Erro no login",
@@ -133,16 +57,29 @@ const Auth = () => {
             ? "Email ou senha incorretos" 
             : error.message,
         });
+      } else {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Redirecionando para o dashboard...",
+        });
+        navigate("/dashboard");
       }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: error.errors[0]?.message || "Verifique os dados inseridos",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isLoading || isRedirecting) return;
-    
     setIsLoading(true);
-    debugLog('Iniciando processo de cadastro...');
 
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
@@ -152,8 +89,7 @@ const Auth = () => {
     try {
       const validation = authSchema.parse({ email, password, fullName });
       
-      debugLog('Dados validados, fazendo cadastro no Supabase...');
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: validation.email,
         password: validation.password,
         options: {
@@ -165,25 +101,6 @@ const Auth = () => {
       });
 
       if (error) {
-        debugLog('Erro no cadastro:', error);
-        throw error;
-      }
-
-      if (data.user) {
-        debugLog('Cadastro realizado com sucesso:', { userId: data.user.id });
-        await handleSuccessfulAuth("Cadastro realizado com sucesso! Redirecionando...");
-      }
-    } catch (error: any) {
-      debugLog('Erro capturado:', error);
-      setIsLoading(false);
-      
-      if (error instanceof z.ZodError) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: error.errors[0]?.message || "Verifique os dados inseridos",
-        });
-      } else {
         toast({
           variant: "destructive",
           title: "Erro no cadastro",
@@ -191,44 +108,25 @@ const Auth = () => {
             ? "Este email já está cadastrado" 
             : error.message,
         });
+      } else {
+        toast({
+          title: "Cadastro realizado com sucesso!",
+          description: "Você foi automaticamente logado. Redirecionando...",
+        });
+        navigate("/dashboard");
       }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: error.errors[0]?.message || "Verifique os dados inseridos",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  // Mostrar loading se já está autenticado ou redirecionando
-  if (loading || (user && !isRedirecting)) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-secondary mb-4">
-            <Brain className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <div className="space-y-2">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="text-muted-foreground">Verificando autenticação...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Mostrar tela de redirecionamento
-  if (isRedirecting) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 mb-4">
-            <CheckCircle className="h-8 w-8 text-white" />
-          </div>
-          <div className="space-y-2">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="text-lg font-medium">Login realizado com sucesso!</p>
-            <p className="text-muted-foreground">Redirecionando para o sistema...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 flex items-center justify-center p-4">
@@ -243,11 +141,6 @@ const Auth = () => {
           <p className="text-muted-foreground mt-2">
             Acesse sua conta para continuar
           </p>
-          {redirectTo !== "/dashboard" && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Você será redirecionado para: {redirectTo}
-            </p>
-          )}
         </div>
 
         <Card>
@@ -260,8 +153,8 @@ const Auth = () => {
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login" disabled={isLoading}>Entrar</TabsTrigger>
-                <TabsTrigger value="signup" disabled={isLoading}>Cadastrar</TabsTrigger>
+                <TabsTrigger value="login">Entrar</TabsTrigger>
+                <TabsTrigger value="signup">Cadastrar</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
@@ -275,7 +168,6 @@ const Auth = () => {
                       placeholder="seu@email.com"
                       required
                       maxLength={255}
-                      disabled={isLoading}
                     />
                   </div>
                   <div>
@@ -288,12 +180,11 @@ const Auth = () => {
                       required
                       minLength={6}
                       maxLength={100}
-                      disabled={isLoading}
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isLoading ? 'Entrando...' : 'Entrar'}
+                    Entrar
                   </Button>
                 </form>
               </TabsContent>
@@ -310,7 +201,6 @@ const Auth = () => {
                       required
                       minLength={2}
                       maxLength={100}
-                      disabled={isLoading}
                     />
                   </div>
                   <div>
@@ -322,7 +212,6 @@ const Auth = () => {
                       placeholder="seu@email.com"
                       required
                       maxLength={255}
-                      disabled={isLoading}
                     />
                   </div>
                   <div>
@@ -335,12 +224,11 @@ const Auth = () => {
                       required
                       minLength={6}
                       maxLength={100}
-                      disabled={isLoading}
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isLoading ? 'Criando Conta...' : 'Criar Conta'}
+                    Criar Conta
                   </Button>
                 </form>
               </TabsContent>
@@ -349,11 +237,7 @@ const Auth = () => {
         </Card>
 
         <div className="text-center mt-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate("/")}
-            disabled={isLoading}
-          >
+          <Button variant="ghost" onClick={() => navigate("/")}>
             ← Voltar para página inicial
           </Button>
         </div>
