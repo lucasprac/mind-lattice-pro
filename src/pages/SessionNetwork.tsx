@@ -1,26 +1,24 @@
-import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Network as NetworkIcon, RefreshCw } from "lucide-react";
+import { ArrowLeft, Network as NetworkIcon } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useRecords } from "@/hooks/useRecords";
 import { usePatientNetwork } from "@/hooks/usePatientNetwork";
 import { OptimizedNetworkCanvas } from "@/components/OptimizedNetworkCanvas";
-import { toast } from "sonner";
 
 const SessionNetwork = () => {
   const { patientId, recordId } = useParams<{ patientId: string; recordId: string }>();
   const navigate = useNavigate();
   const { patients } = usePatients();
   const { records } = useRecords(patientId);
-  const [isGeneral, setIsGeneral] = useState(false);
   
+  // Always use general network (record_id = null) but pass current session for process tracking
   const { networkData, loading, saveNetwork } = usePatientNetwork(
     patientId || "",
-    recordId,
-    isGeneral
+    recordId, // Pass recordId for process session tracking
+    true // Always use general network
   );
   
   const patient = patients.find(p => p.id === patientId);
@@ -40,15 +38,6 @@ const SessionNetwork = () => {
       </div>
     );
   }
-
-  const handleToggleNetwork = () => {
-    setIsGeneral(!isGeneral);
-    toast.info(
-      !isGeneral 
-        ? "Alterado para Rede Geral - Processos serão salvos na rede global do paciente" 
-        : "Alterado para Rede da Sessão - Processos serão salvos apenas nesta sessão"
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -91,30 +80,18 @@ const SessionNetwork = () => {
         </div>
       </Card>
 
-      {/* Network Type Toggle */}
-      <Card className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <NetworkIcon className="h-5 w-5 text-purple-600" />
-            <div>
-              <h3 className="font-semibold text-sm">
-                {isGeneral ? "Rede Geral do Paciente" : "Rede da Sessão"}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {isGeneral 
-                  ? "Processos adicionados serão salvos na rede global e visíveis em todas as sessões" 
-                  : "Processos adicionados serão específicos desta sessão"}
-              </p>
-            </div>
+      {/* Network Info Card - Simplified */}
+      <Card className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+        <div className="flex items-center gap-3">
+          <NetworkIcon className="h-5 w-5 text-purple-600" />
+          <div>
+            <h3 className="font-semibold text-sm">
+              Rede do Paciente
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Esta é a rede unificada do paciente. Processos criados aqui estarão disponíveis para análise em todas as sessões.
+            </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleToggleNetwork}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {isGeneral ? "Alternar para Sessão" : "Alternar para Geral"}
-          </Button>
         </div>
       </Card>
 
@@ -128,6 +105,7 @@ const SessionNetwork = () => {
             networkData={networkData}
             readOnly={false}
             onSave={saveNetwork}
+            currentSessionId={recordId} // Pass current session for process tracking
           />
         )}
       </Card>
