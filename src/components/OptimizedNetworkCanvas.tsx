@@ -6,13 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -50,44 +43,14 @@ import {
   X,
   Link2,
   Edit,
-  Settings,
-  ArrowLeftRight
+  Settings
 } from "lucide-react";
 import { toast } from "sonner";
-
-// EEMM Dimensions and Levels
-const EEMM_DIMENSIONS = {
-  cognition: {
-    name: "Cognição",
-    color: "bg-blue-100 border-blue-400 text-blue-900",
-  },
-  emotion: {
-    name: "Emoção",
-    color: "bg-red-100 border-red-400 text-red-900",
-  },
-  self: {
-    name: "Self",
-    color: "bg-green-100 border-green-400 text-green-900",
-  },
-  motivation: {
-    name: "Motivação",
-    color: "bg-yellow-100 border-yellow-400 text-yellow-900",
-  },
-  behavior: {
-    name: "Comportamento",
-    color: "bg-purple-100 border-purple-400 text-purple-900",
-  }
-};
-
-const EEMM_LEVELS = {
-  biology: { name: "Biologia/Fisiologia" },
-  psychology: { name: "Psicologia" },
-  social: { name: "Social/Cultural" }
-};
 
 // **OTIMIZAÇÃO 1: Apenas 3 diferentes tipos de marcadores**
 type MarkerType = 'arrow' | 'line' | 'circle';
 
+// Simplified ProcessNode without EEMM dimensions and levels - moved to Mediators step
 interface ProcessNode {
   id: string;
   x: number;
@@ -95,10 +58,6 @@ interface ProcessNode {
   width: number;
   height: number;
   text: string;
-  dimension: keyof typeof EEMM_DIMENSIONS;
-  level: keyof typeof EEMM_LEVELS;
-  intensity: number;
-  frequency: number;
 }
 
 type ConnectionType = 'maladaptive' | 'unchanged' | 'adaptive';
@@ -160,14 +119,8 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
   const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
   const [processNameToDelete, setProcessNameToDelete] = useState('');
   
-  // New node form
-  const [newNode, setNewNode] = useState({
-    text: '',
-    dimension: 'cognition' as keyof typeof EEMM_DIMENSIONS,
-    level: 'psychology' as keyof typeof EEMM_LEVELS,
-    intensity: 3,
-    frequency: 3,
-  });
+  // Simplified new node form - only text input
+  const [newProcessText, setNewProcessText] = useState('');
 
   // **OTIMIZAÇÃO 1: Apenas 3 opções de marcadores**
   const markerOptions: { value: MarkerType; label: string; icon: React.ReactNode }[] = [
@@ -213,20 +166,20 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
     const buttonSpace = hasButtons ? 60 : 20; // Space for edit and connection buttons
     const width = Math.min(textWidth + buttonSpace, 320); // Max width
     
-    // Calculate height based on text wrapping
+    // Calculate height based on text wrapping - simplified without dimension/level badges
     const estimatedLines = Math.ceil(textWidth / (width - 60));
-    const height = Math.max(baseHeight, estimatedLines * 20 + 80); // Increased for better button layout
+    const height = Math.max(baseHeight, estimatedLines * 20 + 60); // Reduced height
     
     return { width, height };
   };
 
   const addNode = () => {
-    if (!newNode.text.trim()) {
+    if (!newProcessText.trim()) {
       toast.error("Digite o texto do processo");
       return;
     }
 
-    const optimalSize = calculateOptimalSize(newNode.text, true);
+    const optimalSize = calculateOptimalSize(newProcessText, true);
     
     const node: ProcessNode = {
       id: `node-${Date.now()}`,
@@ -234,16 +187,12 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       y: 100 + Math.random() * 200,
       width: optimalSize.width,
       height: optimalSize.height,
-      text: newNode.text,
-      dimension: newNode.dimension,
-      level: newNode.level,
-      intensity: newNode.intensity,
-      frequency: newNode.frequency,
+      text: newProcessText,
     };
 
     saveToHistory();
     setNodes([...nodes, node]);
-    setNewNode({ ...newNode, text: '' });
+    setNewProcessText('');
     toast.success("Processo adicionado");
   };
 
@@ -593,57 +542,24 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
       {!readOnly && (
         <Card className="p-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Node Creation */}
+            {/* Simplified Node Creation - Only text input */}
             <div className="space-y-4">
               <h3 className="font-semibold flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Adicionar Processo
               </h3>
               
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label>Dimensão</Label>
-                  <Select 
-                    value={newNode.dimension} 
-                    onValueChange={(value) => setNewNode({ ...newNode, dimension: value as keyof typeof EEMM_DIMENSIONS })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(EEMM_DIMENSIONS).map(([key, dim]) => (
-                        <SelectItem key={key} value={key}>
-                          {dim.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label>Nível</Label>
-                  <Select 
-                    value={newNode.level} 
-                    onValueChange={(value) => setNewNode({ ...newNode, level: value as keyof typeof EEMM_LEVELS })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(EEMM_LEVELS).map(([key, level]) => (
-                        <SelectItem key={key} value={key}>
-                          {level.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800 mb-2">
+                  💡 <strong>Foco na Análise de Rede:</strong> Adicione apenas o texto dos processos psicológicos. 
+                  As classificações de dimensão e nível serão feitas na próxima etapa (Análise de Mediadores).
+                </p>
               </div>
               
               <Input
                 placeholder="Descreva o processo psicológico..."
-                value={newNode.text}
-                onChange={(e) => setNewNode({ ...newNode, text: e.target.value })}
+                value={newProcessText}
+                onChange={(e) => setNewProcessText(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && addNode()}
               />
               
@@ -1055,16 +971,15 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
               })}
             </svg>
 
-            {/* **OTIMIZAÇÃO 2: Nós melhorados com design de edição de texto otimizado** */}
+            {/* **OTIMIZAÇÃO 2: Nós simplificados sem dimensões e níveis** */}
             {nodes.map((node) => {
-              const dimensionStyles = EEMM_DIMENSIONS[node.dimension];
               const isSelected = selectedNode === node.id;
               const isEditing = editingNodeText === node.id;
               
               return (
                 <div
                   key={node.id}
-                  className={`absolute border-2 rounded-lg shadow-md transition-all ${dimensionStyles.color} ${
+                  className={`absolute border-2 rounded-lg shadow-md transition-all bg-white border-gray-300 ${
                     isSelected ? 'ring-4 ring-blue-400 ring-opacity-50' : ''
                   }`}
                   style={{
@@ -1079,9 +994,9 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                   }}
                   onMouseDown={(e) => handleMouseDown(e, node.id)}
                 >
-                  {/* **OTIMIZAÇÃO 2: Área de conteúdo com layout melhorado para edição** */}
+                  {/* **OTIMIZAÇÃO 2: Área de conteúdo com layout simplificado** */}
                   <div className="flex-1 flex flex-col justify-between min-h-0">
-                    {/* **OTIMIZAÇÃO 2: Conteúdo de texto com design de edição melhorado** */}
+                    {/* **OTIMIZAÇÃO 2: Conteúdo de texto simplificado** */}
                     <div className="flex-1 min-h-0">
                       {isEditing ? (
                         <div className="space-y-3 h-full" onClick={(e) => e.stopPropagation()}>
@@ -1121,29 +1036,25 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                         </div>
                       ) : (
                         <p 
-                          className="text-sm font-medium break-words leading-tight pr-2 cursor-default"
+                          className="text-sm font-medium break-words leading-tight cursor-default"
                         >
                           {node.text}
                         </p>
                       )}
                     </div>
                     
-                    {/* **OTIMIZAÇÃO 2: Linha inferior com badge e botões - melhor organização sem sobreposição** */}
+                    {/* **OTIMIZAÇÃO 2: Linha inferior simplificada - apenas botões** */}
                     {!isEditing && (
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-opacity-30 border-gray-400">
-                        <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                          {EEMM_LEVELS[node.level].name}
-                        </Badge>
-                        
+                      <div className="flex items-center justify-end mt-3 pt-2 border-t border-opacity-30 border-gray-400">
                         {!readOnly && (
-                          <div className="flex gap-1 ml-2">
+                          <div className="flex gap-1">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-7 w-7 p-0 hover:bg-white hover:bg-opacity-80"
+                                    className="h-7 w-7 p-0 hover:bg-gray-100"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       startEditingNodeText(node.id);
@@ -1162,7 +1073,7 @@ export const OptimizedNetworkCanvas: React.FC<NetworkCanvasProps> = ({
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-7 w-7 p-0 hover:bg-white hover:bg-opacity-80"
+                                    className="h-7 w-7 p-0 hover:bg-gray-100"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setShowConnectionMenu(showConnectionMenu === node.id ? null : node.id);
