@@ -69,7 +69,7 @@ const PatientAssessment = () => {
   const record = records.find(r => r.id === recordId);
   
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [healthStatus, setHealthStatus] = useState<string>("boa");
+  const [healthStatus, setHealthStatus] = useState<string>(""); // Start empty to properly track selection
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -86,9 +86,9 @@ const PatientAssessment = () => {
     );
   }
 
-  // Calculate progress based on answered questions
+  // Calculate progress based on answered questions - FIXED: now properly counts health status
   const totalQuestions = PBAT_QUESTIONS.length + OUTCOME_QUESTIONS.length + VITALITY_QUESTIONS.length + 1; // +1 for health status
-  const answeredQuestions = Object.keys(answers).length + (healthStatus !== "boa" ? 0 : 1);
+  const answeredQuestions = Object.keys(answers).length + (healthStatus ? 1 : 0); // Count health status if any option is selected
   const progress = Math.round((answeredQuestions / totalQuestions) * 100);
 
   const handleSliderChange = (question: number, value: number[]) => {
@@ -110,6 +110,11 @@ const PatientAssessment = () => {
       if (answers[`q${i}`] === undefined) {
         missingAnswers.push(`Questão de Resultado ${i - 23}`);
       }
+    }
+    
+    // Check health status - FIXED: now properly validates any selection
+    if (!healthStatus) {
+      missingAnswers.push("Questão de Saúde");
     }
     
     // Check vitality questions (30-34)
@@ -303,7 +308,10 @@ const PatientAssessment = () => {
       {/* Health Status */}
       <Card>
         <CardHeader>
-          <CardTitle>29. Durante a última semana, você diria que sua saúde estava:</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            {!healthStatus && <AlertCircle className="h-4 w-4 text-amber-500" />}
+            29. Durante a última semana, você diria que sua saúde estava:
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <RadioGroup value={healthStatus} onValueChange={setHealthStatus}>
