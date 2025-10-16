@@ -15,6 +15,7 @@ export interface EEMMProcess {
   evidence?: string;
   intervention?: string;
   status: 'active' | 'inactive' | 'completed';
+  process_context?: 'matrix' | 'assessment' | 'intervention';
   created_at: string;
   updated_at: string;
   patient?: {
@@ -60,12 +61,13 @@ export const useEEMMProcesses = () => {
           )
         `)
         .eq("therapist_id", user.id)
+        .eq("process_context", "matrix") // Apenas processos da matriz
         .order("created_at", { ascending: false });
 
       if (fetchError) {
         console.error("Erro ao buscar processos EEMM:", fetchError);
         setError(fetchError.message);
-        toast.error("Erro ao carregar processos EEMM");
+        toast.error("Erro ao carregar processos EEMM: " + fetchError.message);
         return;
       }
 
@@ -86,27 +88,35 @@ export const useEEMMProcesses = () => {
     }
 
     try {
-      const { error } = await supabase
+      const insertData = {
+        therapist_id: user.id,
+        patient_id: processData.patient_id,
+        dimension: processData.dimension,
+        evolutionary_process: processData.evolutionary_process,
+        analysis_level: processData.analysis_level,
+        process_name: processData.process_name,
+        intensity: processData.intensity || 3,
+        evidence: processData.evidence || null,
+        intervention: processData.intervention || null,
+        status: "active" as const,
+        process_context: "matrix" as const // Força context matrix para processos EEMM
+      };
+
+      console.log("Inserindo processo EEMM:", insertData);
+
+      const { data, error } = await supabase
         .from("eemm_processes")
-        .insert({
-          therapist_id: user.id,
-          patient_id: processData.patient_id,
-          dimension: processData.dimension,
-          evolutionary_process: processData.evolutionary_process,
-          analysis_level: processData.analysis_level,
-          process_name: processData.process_name,
-          intensity: processData.intensity,
-          evidence: processData.evidence,
-          intervention: processData.intervention,
-          status: "active"
-        });
+        .insert(insertData)
+        .select()
+        .single();
 
       if (error) {
-        console.error("Erro ao criar processo EEMM:", error);
-        toast.error("Erro ao criar processo EEMM");
+        console.error("Erro detalhado ao criar processo EEMM:", error);
+        toast.error(`Erro ao criar processo EEMM: ${error.message}`);
         return false;
       }
 
+      console.log("Processo EEMM criado com sucesso:", data);
       toast.success("Processo EEMM criado com sucesso");
       await fetchProcesses();
       return true;
@@ -124,15 +134,19 @@ export const useEEMMProcesses = () => {
     }
 
     try {
+      // Remove campos que não devem ser atualizados
+      const { id, therapist_id, created_at, updated_at, patient, ...updateData } = updates;
+      
       const { error } = await supabase
         .from("eemm_processes")
-        .update(updates)
+        .update(updateData)
         .eq("id", processId)
-        .eq("therapist_id", user.id);
+        .eq("therapist_id", user.id)
+        .eq("process_context", "matrix");
 
       if (error) {
         console.error("Erro ao atualizar processo EEMM:", error);
-        toast.error("Erro ao atualizar processo EEMM");
+        toast.error(`Erro ao atualizar processo EEMM: ${error.message}`);
         return false;
       }
 
@@ -157,11 +171,12 @@ export const useEEMMProcesses = () => {
         .from("eemm_processes")
         .delete()
         .eq("id", processId)
-        .eq("therapist_id", user.id);
+        .eq("therapist_id", user.id)
+        .eq("process_context", "matrix");
 
       if (error) {
         console.error("Erro ao deletar processo EEMM:", error);
-        toast.error("Erro ao deletar processo EEMM");
+        toast.error(`Erro ao deletar processo EEMM: ${error.message}`);
         return false;
       }
 
