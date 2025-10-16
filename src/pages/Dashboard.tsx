@@ -34,6 +34,7 @@ import {
 import { usePatients } from "@/hooks/usePatients";
 import { useAppointments, type CreateAppointmentData, type RecurrenceType } from "@/hooks/useAppointments";
 import { useEEMMProcesses } from "@/hooks/useEEMMProcesses";
+import { useRoadmapProcesses } from "@/hooks/useRoadmapProcesses";
 import { useNavigate } from "react-router-dom";
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,7 +44,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { patients, getPatientStats } = usePatients();
   const { appointments, getAppointmentStats, createAppointment } = useAppointments();
-  const { processes, getProcessStats } = useEEMMProcesses();
+  const { getProcessStats: getEEMMStats } = useEEMMProcesses();
+  const { getProcessStats: getRoadmapStats } = useRoadmapProcesses();
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -70,7 +72,8 @@ const Dashboard = () => {
 
   const patientStats = getPatientStats();
   const appointmentStats = getAppointmentStats();
-  const processStats = getProcessStats();
+  const eemmStats = getEEMMStats();
+  const roadmapStats = getRoadmapStats();
 
   const stats = [
     { 
@@ -82,7 +85,7 @@ const Dashboard = () => {
     },
     { 
       label: "Processos EEMM", 
-      value: processStats.total.toString(), 
+      value: eemmStats.total.toString(), 
       icon: Network, 
       color: "text-secondary",
       onClick: () => navigate("/eemm")
@@ -94,8 +97,8 @@ const Dashboard = () => {
       color: "text-success"
     },
     { 
-      label: "Consultas Agendadas", 
-      value: appointmentStats.scheduled.toString(), 
+      label: "Processos do Roadmap", 
+      value: roadmapStats.total.toString(), 
       icon: TrendingUp, 
       color: "text-warning"
     },
@@ -553,18 +556,18 @@ const Dashboard = () => {
               </div>
             </div>
             
-            {processStats.total > 0 && (
+            {eemmStats.total > 0 && (
               <div className="grid grid-cols-3 gap-4 mt-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{processStats.total}</div>
+                  <div className="text-2xl font-bold text-primary">{eemmStats.total}</div>
                   <div className="text-xs text-muted-foreground">Processos</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{processStats.active}</div>
+                  <div className="text-2xl font-bold text-green-600">{eemmStats.active}</div>
                   <div className="text-xs text-muted-foreground">Ativos</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">{processStats.highIntensity}</div>
+                  <div className="text-2xl font-bold text-orange-600">{eemmStats.highIntensity}</div>
                   <div className="text-xs text-muted-foreground">Alta Intensidade</div>
                 </div>
               </div>
