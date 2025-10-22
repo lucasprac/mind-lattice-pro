@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import type { Tables } from "@/integrations/supabase/types";
+
+type FunctionalAnalysisRow = Tables<'functional_analysis'>;
 
 export interface FunctionalAnalysisData {
   id?: string;
@@ -24,135 +27,63 @@ export const usePatientFunctionalAnalysis = (patientId: string, recordId?: strin
   const { user } = useAuth();
 
   const fetchAnalyses = async () => {
-    if (!user?.id || !patientId) {
-      setLoading(false);
-      return;
-    }
-
+    if (!user?.id || !patientId) { setLoading(false); return; }
     try {
       setLoading(true);
-      let query = supabase
-        .from("functional_analysis")
-        .select("*")
-        .eq("patient_id", patientId)
-        .eq("therapist_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (recordId) {
-        query = query.eq("record_id", recordId);
-      }
-
+      let query = supabase.from('functional_analysis').select('*').eq('patient_id', patientId).eq('therapist_id', user.id).order('created_at', { ascending: false });
+      if (recordId) query = query.eq('record_id', recordId);
       const { data, error } = await query;
-
-      if (error) {
-        console.error("Erro ao buscar análises:", error);
-        toast.error("Erro ao carregar análises");
-        return;
-      }
-
-      const mapped = data?.map((item: any) => ({
+      if (error) { toast.error('Erro ao carregar análises'); return; }
+      const mapped = (data as FunctionalAnalysisRow[] | null)?.map(item => ({
         id: item.id,
         processName: item.process_name,
         dimension: item.dimension,
-        selectionAnalysis: item.selection_analysis || "",
-        variationAnalysis: item.variation_analysis || "",
-        retentionAnalysis: item.retention_analysis || "",
-        biofisiologicoSelection: item.biofisiologico_selection || "",
-        biofisiologicoVariation: item.biofisiologico_variation || "",
-        biofisiologicoRetention: item.biofisiologico_retention || "",
-        socioculturalSelection: item.sociocultural_selection || "",
-        socioculturalVariation: item.sociocultural_variation || "",
-        socioculturalRetention: item.sociocultural_retention || "",
+        selectionAnalysis: item.selection_analysis || '',
+        variationAnalysis: item.variation_analysis || '',
+        retentionAnalysis: item.retention_analysis || '',
+        biofisiologicoSelection: item.biofisiologico_selection || '',
+        biofisiologicoVariation: item.biofisiologico_variation || '',
+        biofisiologicoRetention: item.biofisiologico_retention || '',
+        socioculturalSelection: item.sociocultural_selection || '',
+        socioculturalVariation: item.sociocultural_variation || '',
+        socioculturalRetention: item.sociocultural_retention || '',
       })) || [];
-
       setAnalyses(mapped);
-    } catch (err) {
-      console.error("Erro inesperado:", err);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const saveAnalysis = async (analysis: FunctionalAnalysisData) => {
-    if (!user?.id || !patientId) {
-      toast.error("Usuário não autenticado");
-      return false;
+    if (!user?.id || !patientId) { toast.error('Usuário não autenticado'); return false; }
+    const dbData: Partial<FunctionalAnalysisRow> = {
+      patient_id: patientId,
+      therapist_id: user.id,
+      record_id: recordId || null,
+      process_name: analysis.processName,
+      dimension: analysis.dimension,
+      selection_analysis: analysis.selectionAnalysis || null,
+      variation_analysis: analysis.variationAnalysis || null,
+      retention_analysis: analysis.retentionAnalysis || null,
+      biofisiologico_selection: analysis.biofisiologicoSelection || null,
+      biofisiologico_variation: analysis.biofisiologicoVariation || null,
+      biofisiologico_retention: analysis.biofisiologicoRetention || null,
+      sociocultural_selection: analysis.socioculturalSelection || null,
+      sociocultural_variation: analysis.socioculturalVariation || null,
+      sociocultural_retention: analysis.socioculturalRetention || null,
+    };
+    if (analysis.id) {
+      const { error } = await supabase.from('functional_analysis').update(dbData).eq('id', analysis.id).eq('therapist_id', user.id);
+      if (error) { toast.error('Erro ao salvar análise'); return false; }
+    } else {
+      const { data, error } = await supabase.from('functional_analysis').insert(dbData).select('id').single();
+      if (error) { toast.error('Erro ao salvar análise'); return false; }
+      setAnalyses(prev => [{ ...analysis, id: (data as any).id }, ...prev]);
     }
-
-    try {
-      const dbData = {
-        patient_id: patientId,
-        therapist_id: user.id,
-        record_id: recordId || null,
-        process_name: analysis.processName,
-        dimension: analysis.dimension,
-        selection_analysis: analysis.selectionAnalysis,
-        variation_analysis: analysis.variationAnalysis,
-        retention_analysis: analysis.retentionAnalysis,
-        biofisiologico_selection: analysis.biofisiologicoSelection,
-        biofisiologico_variation: analysis.biofisiologicoVariation,
-        biofisiologico_retention: analysis.biofisiologicoRetention,
-        sociocultural_selection: analysis.socioculturalSelection,
-        sociocultural_variation: analysis.socioculturalVariation,
-        sociocultural_retention: analysis.socioculturalRetention,
-      };
-
-      if (analysis.id) {
-        // Update existing
-        const { error } = await supabase
-          .from("functional_analysis")
-          .update(dbData)
-          .eq("id", analysis.id);
-
-        if (error) {
-          console.error("Erro ao atualizar análise:", error);
-          toast.error("Erro ao salvar análise");
-          return false;
-        }
-      } else {
-        // Create new
-        const { data, error } = await supabase
-          .from("functional_analysis")
-          .insert(dbData)
-          .select()
-          .single();
-
-        if (error) {
-          console.error("Erro ao criar análise:", error);
-          toast.error("Erro ao salvar análise");
-          return false;
-        }
-
-        // Add to local state
-        setAnalyses(prev => [{
-          ...analysis,
-          id: data.id,
-        }, ...prev]);
-      }
-
-      toast.success("Análise salva com sucesso");
-      await fetchAnalyses(); // Refresh
-      return true;
-    } catch (err) {
-      console.error("Erro inesperado:", err);
-      toast.error("Erro inesperado ao salvar análise");
-      return false;
-    }
+    toast.success('Análise salva com sucesso'); await fetchAnalyses(); return true;
   };
 
-  const getAnalysisForProcess = (processName: string): FunctionalAnalysisData | undefined => {
-    return analyses.find(a => a.processName === processName);
-  };
+  const getAnalysisForProcess = (processName: string) => analyses.find(a => a.processName === processName);
 
-  useEffect(() => {
-    fetchAnalyses();
-  }, [user?.id, patientId, recordId]);
+  useEffect(() => { fetchAnalyses(); }, [user?.id, patientId, recordId]);
 
-  return {
-    analyses,
-    loading,
-    saveAnalysis,
-    getAnalysisForProcess,
-    refetch: fetchAnalyses,
-  };
+  return { analyses, loading, saveAnalysis, getAnalysisForProcess, refetch: fetchAnalyses };
 };
