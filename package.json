@@ -10,10 +10,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "supabase:types": "supabase gen types typescript --project-id=$VITE_SUPABASE_PROJECT_ID --schema=public > src/integrations/supabase/types.ts",
-    "supabase:push": "supabase link --project-ref=$VITE_SUPABASE_PROJECT_ID && supabase db push"
+    "supabase:push": "supabase link --project-ref=$VITE_SUPABASE_PROJECT_ID && supabase db push",
+    "check:health": "echo 'validate patients, appointments, eemm_processes tables exist and RLS status' && supabase db remote commit"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
+    "@radix-ui/react-tooltip": "1.2.7",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
