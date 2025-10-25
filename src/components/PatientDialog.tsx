@@ -23,6 +23,8 @@ import { Plus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { validationUtils } from "@/lib/validation";
+import { handleError } from "@/lib/error-handler";
 
 interface PatientDialogProps {
   onPatientAdded?: () => void;
@@ -39,9 +41,9 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
     birth_date: "",
     email: "",
     phone: "",
-    address: "",
-    emergency_contact: "",
-    emergency_phone: "",
+    gender: "" as "male" | "female" | "other" | "prefer_not_to_say" | "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
     notes: "",
     status: "active" as "active" | "inactive" | "discharged",
   });
@@ -52,12 +54,36 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
       birth_date: "",
       email: "",
       phone: "",
-      address: "",
-      emergency_contact: "",
-      emergency_phone: "",
+      gender: "",
+      emergency_contact_name: "",
+      emergency_contact_phone: "",
       notes: "",
       status: "active",
     });
+  };
+
+  const validateForm = () => {
+    if (!validationUtils.isNotEmpty(formData.full_name)) {
+      toast.error("Nome completo é obrigatório");
+      return false;
+    }
+
+    if (formData.email && !validationUtils.isValidEmail(formData.email)) {
+      toast.error("Email inválido");
+      return false;
+    }
+
+    if (formData.phone && !validationUtils.isValidPhone(formData.phone)) {
+      toast.error("Telefone deve estar no formato (XX) XXXXX-XXXX");
+      return false;
+    }
+
+    if (formData.birth_date && !validationUtils.isValidBirthDate(formData.birth_date)) {
+      toast.error("Data de nascimento inválida");
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,31 +94,34 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
       return;
     }
 
-    if (!formData.full_name.trim()) {
-      toast.error("Nome completo é obrigatório");
+    if (!validateForm()) {
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = await supabase.from("patients").insert({
+      // Sanitizar dados antes de enviar
+      const sanitizedData = {
         therapist_id: user.id,
-        full_name: formData.full_name.trim(),
+        full_name: validationUtils.sanitizeString(formData.full_name),
         birth_date: formData.birth_date || null,
-        email: formData.email.trim() || null,
-        phone: formData.phone.trim() || null,
-        address: formData.address.trim() || null,
-        emergency_contact: formData.emergency_contact.trim() || null,
-        emergency_phone: formData.emergency_phone.trim() || null,
-        notes: formData.notes.trim() || null,
+        email: formData.email?.trim() || null,
+        phone: formData.phone ? validationUtils.formatPhone(formData.phone) : null,
+        gender: formData.gender || null,
+        emergency_contact_name: formData.emergency_contact_name?.trim() || null,
+        emergency_contact_phone: formData.emergency_contact_phone ? 
+          validationUtils.formatPhone(formData.emergency_contact_phone) : null,
+        notes: formData.notes?.trim() || null,
         status: formData.status,
-      });
+      };
+
+      const { error } = await supabase
+        .from("patients")
+        .insert(sanitizedData);
 
       if (error) {
-        console.error("Erro ao criar paciente:", error);
-        toast.error("Erro ao criar paciente: " + error.message);
-        return;
+        throw error;
       }
 
       toast.success("Paciente criado com sucesso!");
@@ -100,8 +129,11 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
       setOpen(false);
       onPatientAdded?.();
     } catch (error) {
-      console.error("Erro inesperado:", error);
-      toast.error("Erro inesperado ao criar paciente");
+      handleError(error, {
+        context: 'PatientDialog.handleSubmit',
+        userId: user?.id,
+        formData: { ...formData, full_name: '[REDACTED]' } // Não logar dados sensíveis
+      });
     } finally {
       setLoading(false);
     }
@@ -127,6 +159,7 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
           </DialogTitle>
           <DialogDescription>
             Preencha as informações do paciente para criar o prontuário.
+            Os campos marcados com * são obrigatórios.
           </DialogDescription>
         </DialogHeader>
         
@@ -140,6 +173,7 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 placeholder="Digite o nome completo"
                 required
+                maxLength={100}
               />
             </div>
             
@@ -150,19 +184,27 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
                 type="date"
                 value={formData.birth_date}
                 onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                max={new Date().toISOString().split('T')[0]} // Não permitir datas futuras
               />
             </div>
             
             <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as "active" | "inactive" | "discharged" })}>
+              <Label htmlFor="gender">Gênero</Label>
+              <Select 
+                value={formData.gender} 
+                onValueChange={(value) => setFormData({ 
+                  ...formData, 
+                  gender: value as "male" | "female" | "other" | "prefer_not_to_say" 
+                })}
+              >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecionar..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="inactive">Inativo</SelectItem>
-                  <SelectItem value="discharged">Alta</SelectItem>
+                  <SelectItem value="male">Masculino</SelectItem>
+                  <SelectItem value="female">Feminino</SelectItem>
+                  <SelectItem value="other">Outro</SelectItem>
+                  <SelectItem value="prefer_not_to_say">Prefiro não dizer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -183,38 +225,58 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => {
+                  // Auto-formatação do telefone durante digitação
+                  const formatted = validationUtils.formatPhone(e.target.value);
+                  setFormData({ ...formData, phone: formatted });
+                }}
                 placeholder="(11) 99999-9999"
-              />
-            </div>
-            
-            <div className="md:col-span-2">
-              <Label htmlFor="address">Endereço</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Endereço completo"
+                maxLength={15}
               />
             </div>
             
             <div>
-              <Label htmlFor="emergency_contact">Contato de Emergência</Label>
+              <Label htmlFor="status">Status</Label>
+              <Select 
+                value={formData.status} 
+                onValueChange={(value) => setFormData({ 
+                  ...formData, 
+                  status: value as "active" | "inactive" | "discharged" 
+                })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="inactive">Inativo</SelectItem>
+                  <SelectItem value="discharged">Alta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="emergency_contact_name">Contato de Emergência</Label>
               <Input
-                id="emergency_contact"
-                value={formData.emergency_contact}
-                onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+                id="emergency_contact_name"
+                value={formData.emergency_contact_name}
+                onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
                 placeholder="Nome do contato"
+                maxLength={100}
               />
             </div>
             
             <div>
-              <Label htmlFor="emergency_phone">Telefone de Emergência</Label>
+              <Label htmlFor="emergency_contact_phone">Telefone de Emergência</Label>
               <Input
-                id="emergency_phone"
-                value={formData.emergency_phone}
-                onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
+                id="emergency_contact_phone"
+                value={formData.emergency_contact_phone}
+                onChange={(e) => {
+                  const formatted = validationUtils.formatPhone(e.target.value);
+                  setFormData({ ...formData, emergency_contact_phone: formatted });
+                }}
                 placeholder="(11) 99999-9999"
+                maxLength={15}
               />
             </div>
             
@@ -226,6 +288,7 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Observações sobre o paciente..."
                 rows={3}
+                maxLength={1000}
               />
             </div>
           </div>
