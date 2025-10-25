@@ -21,11 +21,12 @@ import {
 } from "@/components/ui/select";
 import { Plus, Network, AlertCircle, Users } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePatients, Patient } from "@/hooks/usePatients";
+import { useNetworks } from "@/hooks/useNetworks";
 import { OptimizedNetworkCanvas } from "./OptimizedNetworkCanvas";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { handleError } from "@/lib/error-handler";
 
 interface NetworkDialogProps {
   onNetworkAdded?: () => void;
@@ -39,12 +40,12 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
   const [step, setStep] = useState<'info' | 'canvas'>('info');
   const { user } = useAuth();
   const { patients, loading: patientsLoading, error: patientsError, refetch } = usePatients();
+  const { createNetwork } = useNetworks();
   
   const [formData, setFormData] = useState({
     patient_id: selectedPatient?.id || "",
     name: "",
     description: "",
-    version: 1,
   });
 
   const [networkData, setNetworkData] = useState({
@@ -70,7 +71,6 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
       patient_id: selectedPatient?.id || "",
       name: "",
       description: "",
-      version: 1,
     });
     setNetworkData({
       nodes: [],
@@ -109,15 +109,15 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
     setLoading(true);
 
     try {
-      const { error } = await supabase.from("networks").insert({
-        therapist_id: user.id,
+      // Preparar dados da rede no formato correto
+      const networkDataToSave = {
         patient_id: formData.patient_id,
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
         network_data: {
           nodes: data.nodes,
           connections: data.connections,
           metadata: {
+            name: formData.name.trim(),
+            description: formData.description?.trim() || null,
             created_at: new Date().toISOString(),
             total_nodes: data.nodes.length,
             total_connections: data.connections.length,
@@ -126,22 +126,23 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
             optimization_version: '2.0' // Track that this uses optimized canvas
           }
         },
-        version: formData.version,
-      });
+        notes: `Rede: ${formData.name}${formData.description ? `\n\nDescrição: ${formData.description}` : ''}`
+      };
 
-      if (error) {
-        console.error("Erro ao criar rede:", error);
-        toast.error("Erro ao criar rede: " + error.message);
-        return;
+      const success = await createNetwork(networkDataToSave);
+      
+      if (success) {
+        resetForm();
+        setOpen(false);
+        onNetworkAdded?.();
       }
-
-      toast.success("Rede criada com sucesso!");
-      resetForm();
-      setOpen(false);
-      onNetworkAdded?.();
     } catch (error) {
-      console.error("Erro inesperado:", error);
-      toast.error("Erro inesperado ao criar rede");
+      handleError(error, {
+        context: 'NetworkDialog.handleNetworkSave',
+        userId: user?.id,
+        formData,
+        networkDataLength: data.nodes.length
+      });
     } finally {
       setLoading(false);
     }
@@ -271,6 +272,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Ex: Rede de Ansiedade Social - Sessão 1"
                     required
+                    maxLength={200}
                   />
                 </div>
                 
@@ -282,17 +284,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Descreva o contexto e objetivo desta rede de processos..."
                     rows={3}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="version">Versão</Label>
-                  <Input
-                    id="version"
-                    type="number"
-                    min="1"
-                    value={formData.version}
-                    onChange={(e) => setFormData({ ...formData, version: parseInt(e.target.value) || 1 })}
+                    maxLength={500}
                   />
                 </div>
               </div>
@@ -340,7 +332,7 @@ export const NetworkDialog = ({ onNetworkAdded, trigger, selectedPatient }: Netw
                     <p className="text-green-700">Números de intensidade sempre legíveis</p>
                   </div>
                   <div>
-                    <p className="font-medium text-purple-800">📐 Layout Responsivo</p>
+                    <p className="font-medium text-purple-800">📀 Layout Responsivo</p>
                     <p className="text-purple-700">Processos se ajustam automaticamente</p>
                   </div>
                 </div>
