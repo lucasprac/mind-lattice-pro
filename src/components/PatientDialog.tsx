@@ -23,7 +23,6 @@ import { Plus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { validationUtils } from "@/lib/validation";
 import { handleError } from "@/lib/error-handler";
 
 interface PatientDialogProps {
@@ -36,14 +35,11 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   
+  // Formulário simplificado com apenas campos garantidos
   const [formData, setFormData] = useState({
     full_name: "",
-    birth_date: "",
     email: "",
     phone: "",
-    gender: "" as "male" | "female" | "other" | "prefer_not_to_say" | "",
-    emergency_contact_name: "",
-    emergency_contact_phone: "",
     notes: "",
     status: "active" as "active" | "inactive" | "discharged",
   });
@@ -51,39 +47,47 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
   const resetForm = () => {
     setFormData({
       full_name: "",
-      birth_date: "",
       email: "",
       phone: "",
-      gender: "",
-      emergency_contact_name: "",
-      emergency_contact_phone: "",
       notes: "",
       status: "active",
     });
   };
 
   const validateForm = () => {
-    if (!validationUtils.isNotEmpty(formData.full_name)) {
+    if (!formData.full_name.trim()) {
       toast.error("Nome completo é obrigatório");
       return false;
     }
 
-    if (formData.email && !validationUtils.isValidEmail(formData.email)) {
+    if (formData.full_name.trim().length < 2) {
+      toast.error("Nome deve ter pelo menos 2 caracteres");
+      return false;
+    }
+
+    if (formData.email && !isValidEmail(formData.email)) {
       toast.error("Email inválido");
       return false;
     }
 
-    if (formData.phone && !validationUtils.isValidPhone(formData.phone)) {
-      toast.error("Telefone deve estar no formato (XX) XXXXX-XXXX");
-      return false;
-    }
-
-    if (formData.birth_date && !validationUtils.isValidBirthDate(formData.birth_date)) {
-      toast.error("Data de nascimento inválida");
-      return false;
-    }
-
     return true;
+  };
+
+  // Função simples para validar email
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Função para formatar telefone
+  const formatPhone = (phone: string): string => {
+    const numbers = phone.replace(/\D/g, '');
+    if (numbers.length === 11) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    } else if (numbers.length === 10) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+    }
+    return phone;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,38 +105,51 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
     setLoading(true);
 
     try {
-      // Sanitizar dados antes de enviar
-      const sanitizedData = {
+      // Dados mínimos garantidos para funcionar
+      const patientData = {
         therapist_id: user.id,
-        full_name: validationUtils.sanitizeString(formData.full_name),
-        birth_date: formData.birth_date || null,
-        email: formData.email?.trim() || null,
-        phone: formData.phone ? validationUtils.formatPhone(formData.phone) : null,
-        gender: formData.gender || null,
-        emergency_contact_name: formData.emergency_contact_name?.trim() || null,
-        emergency_contact_phone: formData.emergency_contact_phone ? 
-          validationUtils.formatPhone(formData.emergency_contact_phone) : null,
-        notes: formData.notes?.trim() || null,
-        status: formData.status,
+        full_name: formData.full_name.trim(),
+        // Campos opcionais apenas se tiverem valor
+        ...(formData.email?.trim() && { email: formData.email.trim() }),
+        ...(formData.phone?.trim() && { phone: formatPhone(formData.phone) }),
+        ...(formData.notes?.trim() && { notes: formData.notes.trim() }),
+        ...(formData.status && { status: formData.status })
       };
 
-      const { error } = await supabase
+      console.log('Dados a serem enviados:', patientData);
+
+      const { data, error } = await supabase
         .from("patients")
-        .insert(sanitizedData);
+        .insert(patientData)
+        .select()
+        .single();
 
       if (error) {
+        console.error('Erro detalhado do Supabase:', error);
         throw error;
       }
 
+      console.log('Paciente criado com sucesso:', data);
       toast.success("Paciente criado com sucesso!");
       resetForm();
       setOpen(false);
       onPatientAdded?.();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Erro ao criar paciente:', error);
+      
+      // Tratamento mais específico dos erros
+      if (error?.message?.includes('column')) {
+        toast.error(`Erro no banco de dados: ${error.message}`);
+      } else if (error?.code === '23505') {
+        toast.error('Já existe um paciente com essas informações');
+      } else {
+        toast.error(`Erro ao criar paciente: ${error.message || 'Erro desconhecido'}`);
+      }
+      
       handleError(error, {
         context: 'PatientDialog.handleSubmit',
         userId: user?.id,
-        formData: { ...formData, full_name: '[REDACTED]' } // Não logar dados sensíveis
+        formData: { ...formData, full_name: '[REDACTED]' }
       });
     } finally {
       setLoading(false);
@@ -151,64 +168,35 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
             Adicionar Novo Paciente
           </DialogTitle>
           <DialogDescription>
-            Preencha as informações do paciente para criar o prontuário.
-            Os campos marcados com * são obrigatórios.
+            Preencha as informações básicas do paciente.
+            Campos marcados com * são obrigatórios.
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-4">
+            {/* Nome Completo - Obrigatório */}
+            <div>
               <Label htmlFor="full_name">Nome Completo *</Label>
               <Input
                 id="full_name"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                placeholder="Digite o nome completo"
+                placeholder="Digite o nome completo do paciente"
                 required
                 maxLength={100}
+                className="mt-1"
               />
             </div>
             
-            <div>
-              <Label htmlFor="birth_date">Data de Nascimento</Label>
-              <Input
-                id="birth_date"
-                type="date"
-                value={formData.birth_date}
-                onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                max={new Date().toISOString().split('T')[0]} // Não permitir datas futuras
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="gender">Gênero</Label>
-              <Select 
-                value={formData.gender} 
-                onValueChange={(value) => setFormData({ 
-                  ...formData, 
-                  gender: value as "male" | "female" | "other" | "prefer_not_to_say" 
-                })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">Masculino</SelectItem>
-                  <SelectItem value="female">Feminino</SelectItem>
-                  <SelectItem value="other">Outro</SelectItem>
-                  <SelectItem value="prefer_not_to_say">Prefiro não dizer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
+            {/* Email - Opcional */}
             <div>
               <Label htmlFor="email">Email</Label>
               <Input
@@ -217,24 +205,27 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="email@exemplo.com"
+                className="mt-1"
               />
             </div>
             
+            {/* Telefone - Opcional */}
             <div>
               <Label htmlFor="phone">Telefone</Label>
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => {
-                  // Auto-formatação do telefone durante digitação
-                  const formatted = validationUtils.formatPhone(e.target.value);
+                  const formatted = formatPhone(e.target.value);
                   setFormData({ ...formData, phone: formatted });
                 }}
                 placeholder="(11) 99999-9999"
                 maxLength={15}
+                className="mt-1"
               />
             </div>
             
+            {/* Status */}
             <div>
               <Label htmlFor="status">Status</Label>
               <Select 
@@ -244,7 +235,7 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
                   status: value as "active" | "inactive" | "discharged" 
                 })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -255,32 +246,8 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
               </Select>
             </div>
             
+            {/* Observações - Opcional */}
             <div>
-              <Label htmlFor="emergency_contact_name">Contato de Emergência</Label>
-              <Input
-                id="emergency_contact_name"
-                value={formData.emergency_contact_name}
-                onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
-                placeholder="Nome do contato"
-                maxLength={100}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="emergency_contact_phone">Telefone de Emergência</Label>
-              <Input
-                id="emergency_contact_phone"
-                value={formData.emergency_contact_phone}
-                onChange={(e) => {
-                  const formatted = validationUtils.formatPhone(e.target.value);
-                  setFormData({ ...formData, emergency_contact_phone: formatted });
-                }}
-                placeholder="(11) 99999-9999"
-                maxLength={15}
-              />
-            </div>
-            
-            <div className="md:col-span-2">
               <Label htmlFor="notes">Observações</Label>
               <Textarea
                 id="notes"
@@ -288,12 +255,13 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Observações sobre o paciente..."
                 rows={3}
-                maxLength={1000}
+                maxLength={500}
+                className="mt-1"
               />
             </div>
           </div>
           
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"
@@ -307,6 +275,14 @@ export const PatientDialog = ({ onPatientAdded, trigger }: PatientDialogProps) =
             </Button>
           </DialogFooter>
         </form>
+        
+        {/* Debug info em desenvolvimento */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
+            <strong>Debug:</strong>
+            <pre className="mt-1">{JSON.stringify(formData, null, 2)}</pre>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
