@@ -1,148 +1,155 @@
+/**
+ * NetworkCard - Componente para exibir cards de redes de processos
+ * Adaptado para usar a tabela patient_networks
+ */
+
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Network, 
-  MoreHorizontal, 
-  Edit, 
-  Trash2,
-  Calendar,
-  User,
+import {
+  Network,
   Eye,
+  Edit,
+  Trash2,
   Copy,
   Download,
-  BarChart3,
+  MoreVertical,
+  Calendar,
+  User,
+  GitBranch,
   Zap,
-  GitBranch
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Network as NetworkType } from "@/hooks/useNetworks";
+import type { Network as NetworkType } from "@/hooks/useNetworks";
 
 interface NetworkCardProps {
   network: NetworkType;
-  onEdit?: (network: NetworkType) => void;
-  onDelete?: (network: NetworkType) => void;
-  onView?: (network: NetworkType) => void;
-  onDuplicate?: (network: NetworkType) => void;
-  onExport?: (network: NetworkType) => void;
+  onEdit: (network: NetworkType) => void;
+  onDelete: (network: NetworkType) => void;
+  onView: (network: NetworkType) => void;
+  onDuplicate: (network: NetworkType) => void;
+  onExport: (network: NetworkType) => void;
   showPatientName?: boolean;
 }
 
-const DIMENSION_COLORS: { [key: string]: string } = {
-  cognition: "bg-blue-100 text-blue-800",
-  emotion: "bg-red-100 text-red-800",
-  self: "bg-green-100 text-green-800",
-  motivation: "bg-yellow-100 text-yellow-800",
-  behavior: "bg-purple-100 text-purple-800",
-};
-
-const DIMENSION_NAMES: { [key: string]: string } = {
-  cognition: "Cognição",
-  emotion: "Emoção", 
-  self: "Self",
-  motivation: "Motivação",
-  behavior: "Comportamento",
-};
-
-export const NetworkCard = ({ 
-  network, 
-  onEdit, 
-  onDelete, 
+export const NetworkCard = ({
+  network,
+  onEdit,
+  onDelete,
   onView,
   onDuplicate,
   onExport,
-  showPatientName = true 
+  showPatientName = false,
 }: NetworkCardProps) => {
-  const nodes = network.network_data.nodes || [];
-  const connections = network.network_data.connections || [];
-  const metadata = network.network_data.metadata;
+  // Extrair dados da rede
+  const networkData = network.network_data || {};
+  const nodes = (networkData as any)?.nodes || [];
+  const connections = (networkData as any)?.connections || [];
+  const metadata = (networkData as any)?.metadata || {};
   
-  // Calculate network metrics
-  const dimensionsUsed = new Set(nodes.map((n: any) => n.dimension));
-  const levelsUsed = new Set(nodes.map((n: any) => n.level));
-  const avgIntensity = nodes.length > 0 
-    ? nodes.reduce((sum: number, n: any) => sum + (n.intensity || 0), 0) / nodes.length
-    : 0;
-  const avgFrequency = nodes.length > 0 
-    ? nodes.reduce((sum: number, n: any) => sum + (n.frequency || 0), 0) / nodes.length
-    : 0;
+  // Nome da rede (extrair do metadata ou usar notes)
+  const networkName = metadata.name || 
+                     (network.notes?.split('\n')?.[0]?.replace('Rede: ', '')) || 
+                     'Rede sem nome';
   
-  // Calculate network density
-  const maxConnections = nodes.length * (nodes.length - 1);
-  const density = maxConnections > 0 ? (connections.length / maxConnections) * 100 : 0;
-
-  const getComplexityLevel = () => {
-    const complexityScore = nodes.length * 0.3 + connections.length * 0.4 + dimensionsUsed.size * 0.2 + density * 0.1;
-    
-    if (complexityScore <= 5) return { label: "Simples", color: "bg-green-100 text-green-800" };
-    if (complexityScore <= 15) return { label: "Médio", color: "bg-yellow-100 text-yellow-800" };
-    return { label: "Complexo", color: "bg-red-100 text-red-800" };
+  // Descrição da rede (extrair do metadata ou notes)
+  const networkDescription = metadata.description || 
+                             (network.notes?.includes('Descrição:') ? 
+                              network.notes.split('Descrição: ')[1]?.split('\n')[0] : 
+                              null);
+  
+  // Estatísticas da rede
+  const stats = {
+    nodes: nodes.length,
+    connections: connections.length,
+    dimensions: new Set(nodes.map((n: any) => n.dimension)).size,
+    levels: new Set(nodes.map((n: any) => n.level)).size
   };
-
-  const complexity = getComplexityLevel();
+  
+  // Densidade da rede
+  const maxConnections = stats.nodes * (stats.nodes - 1);
+  const density = maxConnections > 0 ? (stats.connections / maxConnections) * 100 : 0;
+  
+  // Formatar data
+  const createdDate = network.created_at ? 
+    format(new Date(network.created_at), "dd MMM yyyy", { locale: ptBR }) : 
+    'Data não disponível';
+  
+  const analysisDate = network.analysis_date ? 
+    format(new Date(network.analysis_date), "dd MMM yyyy", { locale: ptBR }) : 
+    null;
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow duration-200">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-              <Network className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg">{network.name}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                {showPatientName && network.patient && (
-                  <Badge variant="outline" className="gap-1">
-                    <User className="h-3 w-3" />
-                    {network.patient.full_name}
-                  </Badge>
-                )}
-                <Badge className={complexity.color}>
-                  {complexity.label}
-                </Badge>
-                <Badge variant="outline">
-                  v{network.version}
-                </Badge>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <Network className="h-6 w-6 text-white" />
               </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base leading-tight mb-1 truncate">
+                {networkName}
+              </h3>
+              {showPatientName && network.patient && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
+                  <User className="h-3 w-3" />
+                  <span className="truncate">{network.patient.full_name}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                <span>Criado: {createdDate}</span>
+              </div>
+              {analysisDate && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Zap className="h-3 w-3" />
+                  <span>Análise: {analysisDate}</span>
+                </div>
+              )}
             </div>
           </div>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onView?.(network)}>
-                <Eye className="h-4 w-4 mr-2" />
+              <DropdownMenuItem onClick={() => onView(network)}>
+                <Eye className="mr-2 h-4 w-4" />
                 Visualizar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit?.(network)}>
-                <Edit className="h-4 w-4 mr-2" />
+              <DropdownMenuItem onClick={() => onEdit(network)}>
+                <Edit className="mr-2 h-4 w-4" />
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDuplicate?.(network)}>
-                <Copy className="h-4 w-4 mr-2" />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onDuplicate(network)}>
+                <Copy className="mr-2 h-4 w-4" />
                 Duplicar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport?.(network)}>
-                <Download className="h-4 w-4 mr-2" />
+              <DropdownMenuItem onClick={() => onExport(network)}>
+                <Download className="mr-2 h-4 w-4" />
                 Exportar
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem 
-                onClick={() => onDelete?.(network)}
-                className="text-destructive focus:text-destructive"
+                onClick={() => onDelete(network)}
+                className="text-red-600 focus:text-red-600"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="mr-2 h-4 w-4" />
                 Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -151,101 +158,77 @@ export const NetworkCard = ({
       </CardHeader>
       
       <CardContent className="pt-0">
-        <div className="space-y-4">
-          {/* Description */}
-          {network.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {network.description}
-            </p>
-          )}
-          
-          {/* Network Metrics */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <div className="text-sm font-medium">{nodes.length} processos</div>
-                <div className="text-xs text-muted-foreground">{connections.length} conexões</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <div className="text-sm font-medium">Int: {avgIntensity.toFixed(1)}</div>
-                <div className="text-xs text-muted-foreground">Freq: {avgFrequency.toFixed(1)}</div>
-              </div>
-            </div>
+        {networkDescription && (
+          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+            {networkDescription}
+          </p>
+        )}
+        
+        {/* Estatísticas da rede */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="text-center p-2 bg-blue-50 rounded-lg">
+            <div className="text-lg font-bold text-blue-600">{stats.nodes}</div>
+            <div className="text-xs text-blue-600">Processos</div>
           </div>
-          
-          {/* Dimensions Used */}
-          <div>
-            <h4 className="text-xs font-medium text-muted-foreground mb-2">Dimensões ({dimensionsUsed.size}/5):</h4>
-            <div className="flex flex-wrap gap-1">
-              {Array.from(dimensionsUsed).map((dimension: any) => (
-                <Badge 
-                  key={dimension} 
-                  className={`text-xs ${DIMENSION_COLORS[dimension] || 'bg-gray-100 text-gray-800'}`}
-                >
-                  {DIMENSION_NAMES[dimension] || dimension}
-                </Badge>
-              ))}
-            </div>
-          </div>
-          
-          {/* Network Density */}
-          <div>
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-muted-foreground">Densidade da Rede</span>
-              <span className="font-medium">{density.toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div 
-                className="bg-primary rounded-full h-2 transition-all" 
-                style={{ width: `${Math.min(density, 100)}%` }}
-              />
-            </div>
-          </div>
-          
-          {/* Creation Date */}
-          <div className="pt-2 border-t">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                <span>
-                  {format(new Date(network.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                </span>
-              </div>
-              {network.updated_at !== network.created_at && (
-                <span>
-                  Editado: {format(new Date(network.updated_at), "dd/MM/yyyy", { locale: ptBR })}
-                </span>
-              )}
-            </div>
+          <div className="text-center p-2 bg-green-50 rounded-lg">
+            <div className="text-lg font-bold text-green-600">{stats.connections}</div>
+            <div className="text-xs text-green-600">Conexões</div>
           </div>
         </div>
         
-        {/* Quick Actions */}
-        <div className="flex gap-2 mt-4">
+        {/* Badges de informações */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Badge variant="secondary" className="text-xs">
+            {stats.dimensions}/5 Dimensões
+          </Badge>
+          <Badge variant="secondary" className="text-xs">
+            {stats.levels}/3 Níveis
+          </Badge>
+          {density > 0 && (
+            <Badge variant="outline" className="text-xs">
+              {density.toFixed(1)}% Densidade
+            </Badge>
+          )}
+          {metadata.optimization_version && (
+            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+              ✨ Otimizado
+            </Badge>
+          )}
+        </div>
+        
+        {/* Botões de ação */}
+        <div className="flex gap-2">
           <Button 
-            size="sm" 
             variant="outline" 
+            size="sm" 
+            onClick={() => onView(network)}
             className="flex-1"
-            onClick={() => onView?.(network)}
           >
-            <Eye className="h-4 w-4 mr-2" />
-            Visualizar
+            <Eye className="mr-2 h-4 w-4" />
+            Ver
           </Button>
           <Button 
+            variant="default" 
             size="sm" 
-            variant="outline" 
+            onClick={() => onEdit(network)}
             className="flex-1"
-            onClick={() => onEdit?.(network)}
           >
-            <Edit className="h-4 w-4 mr-2" />
+            <Edit className="mr-2 h-4 w-4" />
             Editar
           </Button>
         </div>
+        
+        {/* Informações adicionais em desenvolvimento */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
+            <div className="font-mono">
+              ID: {network.id.slice(0, 8)}...
+            </div>
+            <div>
+              Dados: {JSON.stringify(networkData).length} chars
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
