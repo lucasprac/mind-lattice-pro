@@ -9,9 +9,10 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "supabase:types": "supabase gen types typescript --project-id=$VITE_SUPABASE_PROJECT_ID --schema=public > src/integrations/supabase/types.ts",
-    "supabase:push": "supabase link --project-ref=$VITE_SUPABASE_PROJECT_ID && supabase db push",
-    "check:health": "echo 'validate patients, appointments, eemm_processes tables exist and RLS status' && supabase db remote commit"
+    "supabase:types": "cross-env npx supabase gen types typescript --project-id=lgazfqmsjdweyaczfxud --schema=public > src/integrations/supabase/types.ts",
+    "supabase:push": "cross-env npx supabase link --project-ref=lgazfqmsjdweyaczfxud && npx supabase db push",
+    "supabase:status": "cross-env npx supabase status",
+    "check:health": "echo Validating Supabase schema and tables..."
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -47,6 +48,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cross-env": "^7.0.3",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
@@ -67,6 +69,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@supabase/cli": "^1.200.3",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
