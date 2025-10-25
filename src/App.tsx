@@ -2,10 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
-import { AuthProvider } from "./hooks/useAuth";
+import { AuthProvider } from "@/shared/hooks/useAuth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ROUTES } from "@/shared/constants/app.constants";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -26,7 +27,26 @@ import Mediators from "./pages/Mediators";
 import FunctionalAnalysis from "./pages/FunctionalAnalysis";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Configurar Query Client com opções otimizadas
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutos
+      gcTime: 10 * 60 * 1000, // 10 minutos (renomeado de cacheTime)
+      retry: (failureCount, error) => {
+        // Não tentar novamente para erros 401 (não autorizado)
+        if (error && 'status' in error && error.status === 401) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+      refetchOnWindowFocus: false // Evitar refetch desnecessários
+    },
+    mutations: {
+      retry: 1
+    }
+  }
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -36,26 +56,179 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients" element={<ProtectedRoute><AppLayout><Patients /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId" element={<ProtectedRoute><AppLayout><PatientRoadmapList /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/session/new" element={<ProtectedRoute><AppLayout><PatientSession /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/session/:recordId" element={<ProtectedRoute><AppLayout><PatientSession /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/session/:recordId/roadmap" element={<ProtectedRoute><AppLayout><SessionRoadmap /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/session/:recordId/assessment" element={<ProtectedRoute><AppLayout><PatientAssessment /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/session/:recordId/network" element={<ProtectedRoute><AppLayout><SessionNetwork /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/session/:recordId/mediators" element={<ProtectedRoute><AppLayout><SessionMediators /></AppLayout></ProtectedRoute>} />
-            <Route path="/patients/:patientId/session/:recordId/functional" element={<ProtectedRoute><AppLayout><PatientFunctionalAnalysis /></AppLayout></ProtectedRoute>} />
-            <Route path="/eemm" element={<ProtectedRoute><AppLayout><EEMMMatrix /></AppLayout></ProtectedRoute>} />
-            <Route path="/networks" element={<ProtectedRoute><AppLayout><Networks /></AppLayout></ProtectedRoute>} />
-            <Route path="/mediators" element={<ProtectedRoute><AppLayout><Mediators /></AppLayout></ProtectedRoute>} />
-            <Route path="/functional-analysis" element={<ProtectedRoute><AppLayout><FunctionalAnalysis /></AppLayout></ProtectedRoute>} />
-            <Route path="/interventions" element={<ProtectedRoute><AppLayout><Interventions /></AppLayout></ProtectedRoute>} />
-            <Route path="/records" element={<ProtectedRoute><AppLayout><Records /></AppLayout></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path={ROUTES.HOME} element={<Index />} />
+            <Route path={ROUTES.AUTH} element={<Auth />} />
+            <Route 
+              path={ROUTES.DASHBOARD} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Dashboard />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.PATIENTS} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Patients />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.PATIENT_DETAIL} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <PatientRoadmapList />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.PATIENT_SESSION_NEW} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <PatientSession />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.PATIENT_SESSION} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <PatientSession />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.SESSION_ROADMAP} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <SessionRoadmap />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.SESSION_ASSESSMENT} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <PatientAssessment />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.SESSION_NETWORK} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <SessionNetwork />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.SESSION_MEDIATORS} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <SessionMediators />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.SESSION_FUNCTIONAL} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <PatientFunctionalAnalysis />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.EEMM_MATRIX} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <EEMMMatrix />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.NETWORKS} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Networks />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.MEDIATORS} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Mediators />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.FUNCTIONAL_ANALYSIS} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <FunctionalAnalysis />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.INTERVENTIONS} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Interventions />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.RECORDS} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Records />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path={ROUTES.SETTINGS} 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Settings />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            {/* Catch-all route deve ser a última */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
