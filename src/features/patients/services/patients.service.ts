@@ -3,6 +3,7 @@
  * Extende o serviço base com funcionalidades específicas
  */
 
+import { supabase } from '@/integrations/supabase/client';
 import { BaseService, ServiceResponse, ServiceListResponse, QueryOptions } from '@/shared/services/base.service';
 import { Tables } from '@/integrations/supabase/types';
 import { PatientCreateInput, PatientUpdateInput, PatientsSearchInput } from '@/shared/schemas/validation.schemas';
