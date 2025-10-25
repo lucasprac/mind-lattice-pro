@@ -148,12 +148,8 @@ export type Database = {
           full_name: string
           email: string | null
           phone: string | null
-          birth_date: string | null
-          gender: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null
-          status: 'active' | 'inactive' | 'discharged' | null
           notes: string | null
-          emergency_contact_name: string | null
-          emergency_contact_phone: string | null
+          status: 'active' | 'inactive' | 'discharged' | null
           created_at: string
           updated_at: string
         }
@@ -163,12 +159,8 @@ export type Database = {
           full_name: string
           email?: string | null
           phone?: string | null
-          birth_date?: string | null
-          gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null
-          status?: 'active' | 'inactive' | 'discharged' | null
           notes?: string | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
+          status?: 'active' | 'inactive' | 'discharged' | null
           created_at?: string
           updated_at?: string
         }
@@ -178,12 +170,8 @@ export type Database = {
           full_name?: string
           email?: string | null
           phone?: string | null
-          birth_date?: string | null
-          gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null
-          status?: 'active' | 'inactive' | 'discharged' | null
           notes?: string | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
+          status?: 'active' | 'inactive' | 'discharged' | null
           created_at?: string
           updated_at?: string
         }
